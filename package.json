@@ -18,6 +18,7 @@
     "@react-native/new-app-screen": "0.82.1",
     "@react-navigation/native": "^7.1.26",
     "@react-navigation/native-stack": "^7.9.0",
+    "@testing-library/jest-native": "^5.4.3",
     "npm": "^11.7.0",
     "react": "19.1.1",
     "react-native": "0.82.1",
@@ -52,5 +53,12 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "jest": {
+    "preset": "react-native",
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@react-native|react-native|@react-navigation)/)"
+    ]
   }
 }
