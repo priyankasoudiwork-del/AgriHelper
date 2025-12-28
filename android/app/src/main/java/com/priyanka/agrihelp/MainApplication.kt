@@ -1,4 +1,4 @@
-package com.contactsapp
+package com.priyanka.agrihelp
 
 import android.app.Application
 import com.facebook.react.PackageList

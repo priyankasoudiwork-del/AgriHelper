@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "734253994884",
+    "project_id": "agrihelp-5199e",
+    "storage_bucket": "agrihelp-5199e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:734253994884:android:8dd4de791ff837222ac3d1",
+        "android_client_info": {
+          "package_name": "com.priyanka.agrihelp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvz5_XW8fIAfNKApvvNORD1X6Jm_C-8T0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
