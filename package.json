@@ -1,5 +1,5 @@
 {
-  "name": "agrihelp",
+  "name": "agrihelperer",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-clipboard/clipboard": "^1.16.3",
     "@react-native-community/geolocation": "^3.4.0",
     "@react-native-firebase/app": "^23.7.0",
@@ -19,6 +20,9 @@
     "@react-navigation/native": "^7.1.26",
     "@react-navigation/native-stack": "^7.9.0",
     "@testing-library/jest-native": "^5.4.3",
+    "mobx": "^6.15.0",
+    "mobx-react-lite": "^4.1.1",
+    "mobx-state-tree": "^7.0.2",
     "npm": "^11.7.0",
     "react": "19.1.1",
     "react-native": "0.82.1",
@@ -56,7 +60,9 @@
   },
   "jest": {
     "preset": "react-native",
-    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!(@react-native|react-native|@react-navigation)/)"
     ]

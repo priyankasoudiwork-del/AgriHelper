@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "AgriHelp.app"
-               BlueprintName = "AgriHelp"
-               ReferencedContainer = "container:AgriHelp.xcodeproj">
+               BuildableName = "AgriHelper.app"
+               BlueprintName = "AgriHelper"
+               ReferencedContainer = "container:AgriHelper.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "AgriHelpTests.xctest"
-               BlueprintName = "AgriHelpTests"
-               ReferencedContainer = "container:AgriHelp.xcodeproj">
+               BuildableName = "AgriHelperTests.xctest"
+               BlueprintName = "AgriHelperTests"
+               ReferencedContainer = "container:AgriHelper.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "AgriHelp.app"
-            BlueprintName = "AgriHelp"
-            ReferencedContainer = "container:AgriHelp.xcodeproj">
+            BuildableName = "AgriHelper.app"
+            BlueprintName = "AgriHelper"
+            ReferencedContainer = "container:AgriHelper.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "AgriHelp.app"
-            BlueprintName = "AgriHelp"
-            ReferencedContainer = "container:AgriHelp.xcodeproj">
+            BuildableName = "AgriHelper.app"
+            BlueprintName = "AgriHelper"
+            ReferencedContainer = "container:AgriHelper.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

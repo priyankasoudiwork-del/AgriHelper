@@ -1,4 +1,4 @@
-package com.priyanka.agrihelp
+package com.priyanka.agrihelper
 
 import android.app.Application
 import com.facebook.react.PackageList

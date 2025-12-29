@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx react-native:*)",
+      "Bash(./gradlew signingReport:*)",
+      "WebSearch",
+      "WebFetch(domain:rnfirebase.io)",
+      "Bash(adb logcat:*)"
+    ]
+  }
+}
