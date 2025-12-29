@@ -8,9 +8,34 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  Alert,
 } from 'react-native';
+import { observer } from 'mobx-react-lite';
+import { useAuth } from '../hooks/useAuth';
 
-export default function HomeScreen({ navigation }) {
+const HomeScreen = observer(({ navigation }) => {
+  const { logout, phoneNumber } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert(
+      'ಲಾಗ್ಔಟ್ | Logout',
+      'ನೀವು ಲಾಗ್ಔಟ್ ಮಾಡಲು ಬಯಸುವಿರಾ?\nAre you sure you want to logout?',
+      [
+        {
+          text: 'ರದ್ದುಮಾಡಿ | Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'ಲಾಗ್ಔಟ್ | Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            // Navigation will be handled by RootNavigator
+          },
+        },
+      ]
+    );
+  };
 
   const features = [
     {
@@ -95,8 +120,20 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>ಕೃಷಿ ಸಹಾಯಕ</Text>
-        <Text style={styles.headerSubtitle}>Farm Assistant</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>ಕೃಷಿ ಸಹಾಯಕ</Text>
+          <Text style={styles.headerSubtitle}>Farm Assistant</Text>
+          {phoneNumber && (
+            <Text style={styles.phoneText}>📱 {phoneNumber}</Text>
+          )}
+        </View>
+        <TouchableOpacity
+          onPress={handleLogout}
+          style={styles.logoutButton}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.logoutIcon}>🚪</Text>
+        </TouchableOpacity>
       </View>
 
       {/* GRID */}
@@ -111,7 +148,7 @@ export default function HomeScreen({ navigation }) {
       />
     </View>
   );
-}
+})
 
 const styles = StyleSheet.create({
   container: {
@@ -124,7 +161,12 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerLeft: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 28,
@@ -135,6 +177,20 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: '#e0f2fe',
+  },
+  phoneText: {
+    fontSize: 12,
+    color: '#e0f2fe',
+    marginTop: 4,
+    opacity: 0.9,
+  },
+  logoutButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  logoutIcon: {
+    fontSize: 24,
   },
 
   grid: {
@@ -173,3 +229,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+export default HomeScreen;
