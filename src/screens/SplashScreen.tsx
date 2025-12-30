@@ -12,33 +12,30 @@ import {
   requestMultiple,
   PERMISSIONS,
   RESULTS,
+  Permission,
 } from 'react-native-permissions';
+import { ScreenProps } from '../types';
 
-export default function SplashScreen({ navigation }) {
+export default function SplashScreen({ navigation }: ScreenProps<'Splash'>) {
   const logoScale = useRef(new Animated.Value(0)).current;
   const logoRotate = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleTranslate = useRef(new Animated.Value(30)).current;
   const loadingWidth = useRef(new Animated.Value(0)).current;
 
-  // 🔐 Permission function
   const askPermissions = async () => {
     try {
-      let permissions = [];
-
-      if (Platform.OS === 'android') {
-        permissions = [
-          PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-          PERMISSIONS.ANDROID.CAMERA,
-          PERMISSIONS.ANDROID.READ_MEDIA_IMAGES, // Android 13+
-        ];
-      } else {
-        permissions = [
-          PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
-          PERMISSIONS.IOS.CAMERA,
-          PERMISSIONS.IOS.PHOTO_LIBRARY,
-        ];
-      }
+      const permissions: Permission[] = Platform.OS === 'android'
+        ? [
+            PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+            PERMISSIONS.ANDROID.CAMERA,
+            PERMISSIONS.ANDROID.READ_MEDIA_IMAGES,
+          ]
+        : [
+            PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+            PERMISSIONS.IOS.CAMERA,
+            PERMISSIONS.IOS.PHOTO_LIBRARY,
+          ];
 
       const statuses = await requestMultiple(permissions);
 
@@ -58,10 +55,9 @@ export default function SplashScreen({ navigation }) {
   };
 
   useEffect(() => {
-    // Ask permissions while splash runs
     askPermissions();
 
-    // Logo scale
+    // Logo animations
     Animated.spring(logoScale, {
       toValue: 1,
       tension: 50,
@@ -69,7 +65,6 @@ export default function SplashScreen({ navigation }) {
       useNativeDriver: true,
     }).start();
 
-    // Logo rotation
     Animated.timing(logoRotate, {
       toValue: 1,
       duration: 800,
@@ -77,7 +72,7 @@ export default function SplashScreen({ navigation }) {
       useNativeDriver: true,
     }).start();
 
-    // Title animation
+    // Title fade in
     setTimeout(() => {
       Animated.parallel([
         Animated.timing(titleOpacity, {
@@ -93,7 +88,7 @@ export default function SplashScreen({ navigation }) {
       ]).start();
     }, 700);
 
-    // Loading bar
+    // Progress bar -> navigate
     setTimeout(() => {
       Animated.timing(loadingWidth, {
         toValue: 100,
@@ -120,7 +115,6 @@ export default function SplashScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Logo */}
       <Animated.View
         style={[
           styles.logo,
@@ -130,7 +124,6 @@ export default function SplashScreen({ navigation }) {
         <Text style={styles.logoText}>🍇</Text>
       </Animated.View>
 
-      {/* Titles */}
       <Animated.View
         style={[
           styles.titleContainer,
@@ -145,7 +138,6 @@ export default function SplashScreen({ navigation }) {
         <Text style={styles.subtitle}>ರಾಸಾಯನಿಕ ಸ್ಪ್ರೇ ನಿರ್ವಹಣೆ</Text>
       </Animated.View>
 
-      {/* Loading */}
       <View style={styles.loadingContainer}>
         <View style={styles.loadingBar}>
           <Animated.View

@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { ScreenProps } from '../types';
 
-export default function Test2({ navigation }) {
+interface Slide {
+  title: string;
+  titleEn: string;
+  description: string;
+  descriptionEn: string;
+  image: string;
+  color: string;
+}
+
+export default function AppIntroScreen({ navigation }: ScreenProps<'AppIntro'>) {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const slides = [
+  const slides: Slide[] = [
     {
       title: "ನಿಮ್ಮ ರಾಸಾಯನಿಕ ಸ್ಪ್ರೇಯನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ",
       titleEn: "Track Your Chemical Sprays",
@@ -43,21 +53,19 @@ export default function Test2({ navigation }) {
     }
   };
 
-  // Navigate to login page
   const handleStart = () => {
-    navigation.navigate('Login'); // Change 'PhoneAuth' to your login screen name
+    navigation.navigate('Login');
   };
 
-  // Skip to last slide or directly to login
   const handleSkip = () => {
-    navigation.navigate('Login'); // Or use: setCurrentSlide(slides.length - 1);
+    navigation.navigate('Login');
   };
 
   const slide = slides[currentSlide];
 
   return (
     <View style={styles.container}>
-      {/* Header with App Logo */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Text style={styles.logoEmoji}>🍇</Text>
@@ -68,31 +76,22 @@ export default function Test2({ navigation }) {
         </View>
       </View>
 
-      {/* Main Content */}
+      {/* Content */}
       <View style={styles.content}>
-        {/* Large Icon */}
         <View style={[styles.iconContainer, { backgroundColor: slide.color + '20' }]}>
           <Text style={styles.iconEmoji}>{slide.image}</Text>
         </View>
 
-        {/* Slide Number */}
         <Text style={styles.slideNumber}>
           {currentSlide + 1} / {slides.length}
         </Text>
 
-        {/* Title in Kannada */}
         <Text style={styles.titleKannada}>{slide.title}</Text>
-        
-        {/* Title in English */}
         <Text style={styles.titleEnglish}>{slide.titleEn}</Text>
 
-        {/* Description in Kannada */}
         <Text style={styles.descriptionKannada}>{slide.description}</Text>
-
-        {/* Description in English */}
         <Text style={styles.descriptionEnglish}>{slide.descriptionEn}</Text>
 
-        {/* Illustration */}
         <View style={styles.illustrationContainer}>
           <View style={styles.illustrationBox}>
             <Text style={styles.illustrationText}>
@@ -104,7 +103,7 @@ export default function Test2({ navigation }) {
         </View>
       </View>
 
-      {/* Dots Indicator */}
+      {/* Dots */}
       <View style={styles.dotsContainer}>
         {slides.map((_, index) => (
           <View
@@ -118,7 +117,7 @@ export default function Test2({ navigation }) {
         ))}
       </View>
 
-      {/* Navigation Buttons */}
+      {/* Buttons */}
       <View style={styles.buttonContainer}>
         {currentSlide > 0 && (
           <TouchableOpacity
@@ -146,9 +145,9 @@ export default function Test2({ navigation }) {
         )}
       </View>
 
-      {/* Skip Button */}
+      {/* Skip */}
       {currentSlide < slides.length - 1 && (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.skipButton}
           onPress={handleSkip}
         >

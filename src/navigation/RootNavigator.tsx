@@ -9,12 +9,12 @@ import { useAuth } from '../hooks/useAuth';
 
 // Import all screens
 import SplashScreen from '../screens/SplashScreen';
-import AppIntroScreen from '../screens/AppIntoScreen';
-import LoginScreen from '../screens/login/LoginSceen';
+import AppIntroScreen from '../screens/AppIntroScreen';
+import LoginScreen from '../screens/login/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import WeatherPredictionScreen from '../screens/weather/WeatherPredictionPage';
 import ProductScannerScreen from '../screens/ai_chat/ProductScannerScreen';
-import SprayRecordsListScreen from '../screens/recordFarm/SprayRecordsListSceen';
+import SprayRecordsListScreen from '../screens/recordFarm/SprayRecordsListScreen';
 import AddSprayRecordScreen from '../screens/recordFarm/AddSprayRecordScreen';
 import FarmInfo from '../screens/agriNews/FramInfo';
 

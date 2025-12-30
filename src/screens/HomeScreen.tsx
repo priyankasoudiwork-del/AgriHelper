@@ -1,6 +1,3 @@
-// screens/HomeScreen.js
-// Home screen with stable GridView (2 columns on all devices)
-
 import React from 'react';
 import {
   View,
@@ -8,36 +5,27 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Alert,
+  ListRenderItem,
 } from 'react-native';
 import { observer } from 'mobx-react-lite';
 import { useAuth } from '../hooks/useAuth';
+import { ScreenProps, FeatureCard } from '../types';
+import { Header, Card, BilingualText, ConfirmDialog } from '../components';
 
-const HomeScreen = observer(({ navigation }) => {
+const HomeScreen = observer(({ navigation }: ScreenProps<'Home'>) => {
   const { logout, phoneNumber } = useAuth();
+  const [showLogoutDialog, setShowLogoutDialog] = React.useState(false);
 
   const handleLogout = () => {
-    Alert.alert(
-      'ಲಾಗ್ಔಟ್ | Logout',
-      'ನೀವು ಲಾಗ್ಔಟ್ ಮಾಡಲು ಬಯಸುವಿರಾ?\nAre you sure you want to logout?',
-      [
-        {
-          text: 'ರದ್ದುಮಾಡಿ | Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'ಲಾಗ್ಔಟ್ | Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            // Navigation will be handled by RootNavigator
-          },
-        },
-      ]
-    );
+    setShowLogoutDialog(true);
   };
 
-  const features = [
+  const confirmLogout = async () => {
+    setShowLogoutDialog(false);
+    await logout();
+  };
+
+  const features: FeatureCard[] = [
     {
       id: '1',
       icon: '🌤️',
@@ -94,7 +82,7 @@ const HomeScreen = observer(({ navigation }) => {
     },
   ];
 
-  const handleFeaturePress = (feature) => {
+  const handleFeaturePress = (feature: FeatureCard) => {
     if (feature.route) {
       navigation.navigate(feature.route);
     } else {
@@ -102,41 +90,35 @@ const HomeScreen = observer(({ navigation }) => {
     }
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem: ListRenderItem<FeatureCard> = ({ item }) => (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: item.bgColor }]}
+      style={styles.cardWrapper}
       onPress={() => handleFeaturePress(item)}
       activeOpacity={0.8}
     >
-      <Text style={styles.icon}>{item.icon}</Text>
-      <Text style={[styles.titleKn, { color: item.color }]}>
-        {item.titleKn}
-      </Text>
-      <Text style={styles.titleEn}>{item.titleEn}</Text>
+      <Card style={[styles.card, { backgroundColor: item.bgColor }]}>
+        <Text style={styles.icon}>{item.icon}</Text>
+        <BilingualText
+          kannada={item.titleKn}
+          english={item.titleEn}
+          kannadaStyle={[styles.titleKn, { color: item.color }]}
+          englishStyle={styles.titleEn}
+          separator="\n"
+        />
+      </Card>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>ಕೃಷಿ ಸಹಾಯಕ</Text>
-          <Text style={styles.headerSubtitle}>Farm Assistant</Text>
-          {phoneNumber && (
-            <Text style={styles.phoneText}>📱 {phoneNumber}</Text>
-          )}
-        </View>
-        <TouchableOpacity
-          onPress={handleLogout}
-          style={styles.logoutButton}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.logoutIcon}>🚪</Text>
-        </TouchableOpacity>
-      </View>
+      <Header
+        title="ಕೃಷಿ ಸಹಾಯಕ"
+        subtitle={phoneNumber ? `Farm Assistant • 📱 ${phoneNumber}` : "Farm Assistant"}
+        rightIcon="🚪"
+        onRightPress={handleLogout}
+        style={styles.header}
+      />
 
-      {/* GRID */}
       <FlatList
         data={features}
         keyExtractor={(item) => item.id}
@@ -146,73 +128,43 @@ const HomeScreen = observer(({ navigation }) => {
         columnWrapperStyle={styles.row}
         showsVerticalScrollIndicator={false}
       />
+
+      <ConfirmDialog
+        visible={showLogoutDialog}
+        title="ಲಾಗ್ಔಟ್ | Logout"
+        message="ನೀವು ಲಾಗ್ಔಟ್ ಮಾಡಲು ಬಯಸುವಿರಾ? Are you sure you want to logout?"
+        confirmText="ಲಾಗ್ಔಟ್ | Logout"
+        cancelText="ರದ್ದುಮಾಡಿ | Cancel"
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutDialog(false)}
+        variant="danger"
+      />
     </View>
   );
-})
+});
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f9ff',
   },
-
   header: {
     backgroundColor: '#0284c7',
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  headerLeft: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#e0f2fe',
-  },
-  phoneText: {
-    fontSize: 12,
-    color: '#e0f2fe',
-    marginTop: 4,
-    opacity: 0.9,
-  },
-  logoutButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  logoutIcon: {
-    fontSize: 24,
-  },
-
   grid: {
     padding: 12,
   },
   row: {
     justifyContent: 'space-between',
   },
-
+  cardWrapper: {
+    width: '48%',
+  },
   card: {
-    width: '48%',            // 🔑 Always 2 columns
     padding: 20,
-    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-
   icon: {
     fontSize: 48,
     marginBottom: 12,
@@ -221,7 +173,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 4,
   },
   titleEn: {
     fontSize: 12,

@@ -2,24 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, Dimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from 'mobx-react-lite';
+import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { useAuth } from '../../hooks/useAuth';
+import { ScreenProps } from '../../types';
 
 const { height } = Dimensions.get('window');
 
-const PhoneAuthScreen = observer(({ navigation }) => {
-  const [step, setStep] = useState('phone'); // 'phone' or 'otp'
+type LoginStep = 'phone' | 'otp';
+
+const PhoneAuthScreen = observer(({ navigation }: ScreenProps<'Login'>) => {
+  const [step, setStep] = useState<LoginStep>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const [confirmation, setConfirmation] = useState(null);
+  const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
   const [timer, setTimer] = useState(0);
 
-  // Get auth methods from MST store
   const { loginWithPhone, verifyOTP, clearError } = useAuth();
 
-  // Timer for resend OTP
   useEffect(() => {
-    let interval;
+    let interval: NodeJS.Timeout | undefined;
     if (timer > 0) {
       interval = setInterval(() => {
         setTimer((prev) => prev - 1);
@@ -28,7 +30,7 @@ const PhoneAuthScreen = observer(({ navigation }) => {
     return () => clearInterval(interval);
   }, [timer]);
 
-  
+
   const handleSendOTP = async () => {
     if (phoneNumber.length === 10) {
       setLoading(true);
@@ -38,7 +40,7 @@ const PhoneAuthScreen = observer(({ navigation }) => {
 
         setConfirmation(confirmationResult);
         setStep('otp');
-        setTimer(60); // 60 seconds countdown
+        setTimer(60);
         setLoading(false);
 
         Alert.alert(
@@ -46,7 +48,7 @@ const PhoneAuthScreen = observer(({ navigation }) => {
           `OTP ಕಳುಹಿಸಲಾಗಿದೆ +91${phoneNumber} ಗೆ\nOTP sent to +91${phoneNumber}`,
           [{ text: 'ಸರಿ | OK' }]
         );
-      } catch (error) {
+      } catch (error: any) {
         setLoading(false);
         console.error('Error sending OTP:', error);
 
@@ -72,7 +74,6 @@ const PhoneAuthScreen = observer(({ navigation }) => {
       try {
         await verifyOTP(confirmation, otp);
 
-        // User successfully signed in - navigation handled by RootNavigator
         console.log('User signed in successfully');
         setLoading(false);
 
@@ -81,8 +82,7 @@ const PhoneAuthScreen = observer(({ navigation }) => {
           'ಲಾಗಿನ್ ಯಶಸ್ವಿಯಾಗಿದೆ!\nLogin successful!',
           [{ text: 'ಸರಿ | OK' }]
         );
-        // No need to navigate - RootNavigator handles it automatically
-      } catch (error) {
+      } catch (error: any) {
         setLoading(false);
         console.error('Error verifying OTP:', error);
 
@@ -99,7 +99,6 @@ const PhoneAuthScreen = observer(({ navigation }) => {
 
         Alert.alert('ದೋಷ | Error', errorMessage, [{ text: 'ಸರಿ | OK' }]);
 
-        // Clear OTP input on error
         setOtp('');
       }
     }
@@ -153,7 +152,7 @@ const PhoneAuthScreen = observer(({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
@@ -190,7 +189,7 @@ const PhoneAuthScreen = observer(({ navigation }) => {
                 {/* Phone Input */}
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, isSmallDevice && styles.labelSmall]}>ಮೊಬೈಲ್ ಸಂಖ್ಯೆ | Mobile Number</Text>
-                  
+
                   <View style={[styles.phoneInputWrapper, isSmallDevice && styles.inputSmall]}>
                     <View style={styles.countryCode}>
                       <Text style={[styles.countryCodeText, isSmallDevice && styles.countryCodeTextSmall]}>🇮🇳 +91</Text>
@@ -241,7 +240,7 @@ const PhoneAuthScreen = observer(({ navigation }) => {
                 {/* OTP Input */}
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, isSmallDevice && styles.labelSmall]}>OTP ನಮೂದಿಸಿ | Enter OTP</Text>
-                  
+
                   <TextInput
                     style={[styles.otpInput, isSmallDevice && styles.otpInputSmall]}
                     placeholder="000000"
