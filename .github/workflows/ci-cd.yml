@@ -121,17 +121,17 @@ jobs:
 
       - name: Decode Keystore
         run: |
-         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/agrihelp-release-key.keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/agrihelp-release-key.keystore
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
       - name: Build Release APK
         env:
-            MYAPP_UPLOAD_STORE_FILE: agrihelp-release-key.keystore
-            MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-            MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-            MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          MYAPP_UPLOAD_STORE_FILE: agrihelp-release-key.keystore
+          MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
           ./gradlew assembleRelease
@@ -142,21 +142,6 @@ jobs:
           name: app-release-v${{ github.run_number }}
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 90
-
-      - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: android/app/build/outputs/apk/release/app-release.apk
-          tag_name: v1.6.${{ github.run_number }}
-          name: AgriHelper v1.6.${{ github.run_number }}
-          body: |
-            ## AgriHelper Release
-            - Version: 1.6.${{ github.run_number }}
-            - Build: ${{ github.run_number }}
-            - Commit: ${{ github.sha }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Job 4: Build AAB (for Google Play)
   build-bundle:
@@ -186,17 +171,17 @@ jobs:
 
       - name: Decode Keystore
         run: |
-              echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/agrihelp-release-key.keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/agrihelp-release-key.keystore
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
       - name: Build Release Bundle
         env:
-            MYAPP_UPLOAD_STORE_FILE: agrihelp-release-key.keystore
-            MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-            MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-            MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          MYAPP_UPLOAD_STORE_FILE: agrihelp-release-key.keystore
+          MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
           ./gradlew bundleRelease
