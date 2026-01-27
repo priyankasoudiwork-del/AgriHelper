@@ -35,6 +35,10 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ಧ್ವನಿ ಇನ್‌ಪುಟ್‌ಗಾಗಿ ನಾವು ನಿಮ್ಮ ಮೈಕ್ರೊಫೋನ್ ಅನ್ನು ಬಳಸುತ್ತೇವೆ | We need access to your microphone for voice input</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>ನಿಮ್ಮ ಧ್ವನಿಯನ್ನು ಪಠ್ಯವಾಗಿ ಪರಿವರ್ತಿಸಲು ನಾವು ಭಾಷಣ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಬಳಸುತ್ತೇವೆ | We use speech recognition to convert your voice to text</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

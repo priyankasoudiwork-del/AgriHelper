@@ -8,46 +8,78 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  checkMultiple,
   requestMultiple,
   PERMISSIONS,
   RESULTS,
   Permission,
 } from 'react-native-permissions';
 import { ScreenProps } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 export default function SplashScreen({ navigation }: ScreenProps<'Splash'>) {
+  const { isAuthenticated } = useAuth();
   const logoScale = useRef(new Animated.Value(0)).current;
   const logoRotate = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleTranslate = useRef(new Animated.Value(30)).current;
   const loadingWidth = useRef(new Animated.Value(0)).current;
+  const hasNavigated = useRef(false);
+  const authStateRef = useRef(isAuthenticated);
+
+  // Update auth state ref when it changes
+  useEffect(() => {
+    authStateRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   const askPermissions = async () => {
     try {
+      // Check if we've already asked for permissions
+      const permissionsAsked = await AsyncStorage.getItem('permissionsAsked');
+
       const permissions: Permission[] = Platform.OS === 'android'
         ? [
             PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
             PERMISSIONS.ANDROID.CAMERA,
             PERMISSIONS.ANDROID.READ_MEDIA_IMAGES,
+            PERMISSIONS.ANDROID.RECORD_AUDIO,
           ]
         : [
             PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
             PERMISSIONS.IOS.CAMERA,
             PERMISSIONS.IOS.PHOTO_LIBRARY,
+            PERMISSIONS.IOS.MICROPHONE,
+            PERMISSIONS.IOS.SPEECH_RECOGNITION,
           ];
 
-      const statuses = await requestMultiple(permissions);
+      // Check current permission statuses
+      const currentStatuses = await checkMultiple(permissions);
 
-      const allGranted = Object.values(statuses).every(
-        status => status === RESULTS.GRANTED
+      // Filter permissions that need to be requested (not granted and not permanently denied)
+      const permissionsToRequest = permissions.filter(
+        permission => currentStatuses[permission] !== RESULTS.GRANTED &&
+                      currentStatuses[permission] !== RESULTS.BLOCKED
       );
 
-      if (!allGranted) {
-        Alert.alert(
-          'Permissions Required',
-          'Location, Camera and Gallery permissions are required for full app functionality.'
+      // Only request if there are permissions to request and we haven't asked before
+      if (permissionsToRequest.length > 0 && !permissionsAsked) {
+        const statuses = await requestMultiple(permissionsToRequest);
+
+        // Mark that we've asked for permissions
+        await AsyncStorage.setItem('permissionsAsked', 'true');
+
+        const allGranted = Object.values(statuses).every(
+          status => status === RESULTS.GRANTED
         );
+
+        if (!allGranted) {
+          Alert.alert(
+            'ಅನುಮತಿಗಳು ಅಗತ್ಯವಿದೆ | Permissions Required',
+            'ಸ್ಥಳ, ಕ್ಯಾಮೆರಾ, ಗ್ಯಾಲರಿ ಮತ್ತು ಮೈಕ್ರೊಫೋನ್ ಅನುಮತಿಗಳು ಸಂಪೂರ್ಣ ಅಪ್ಲಿಕೇಶನ್ ಕಾರ್ಯಕ್ಕೆ ಅಗತ್ಯವಿದೆ. | Location, Camera, Gallery and Microphone permissions are required for full app functionality.'
+          );
+        }
       }
     } catch (error) {
       console.log('Permission error:', error);
@@ -55,6 +87,11 @@ export default function SplashScreen({ navigation }: ScreenProps<'Splash'>) {
   };
 
   useEffect(() => {
+    // Only run once on component mount
+    if (hasNavigated.current) {
+      return;
+    }
+
     askPermissions();
 
     // Logo animations
@@ -96,12 +133,18 @@ export default function SplashScreen({ navigation }: ScreenProps<'Splash'>) {
         easing: Easing.ease,
         useNativeDriver: false,
       }).start(({ finished }) => {
-        if (finished) {
-          navigation.replace('AppIntro');
+        if (finished && !hasNavigated.current) {
+          hasNavigated.current = true;
+          // Navigate based on authentication state
+          if (isAuthenticated) {
+            navigation.replace('Home');
+          } else {
+            navigation.replace('AppIntro');
+          }
         }
       });
     }, 1200);
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
 
   const rotate = logoRotate.interpolate({
     inputRange: [0, 1],

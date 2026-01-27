@@ -16,7 +16,14 @@ export const AuthStore = types
     isLoading: types.optional(types.boolean, true),
     isAuthenticated: types.optional(types.boolean, false),
     error: types.maybeNull(types.string),
+    // OTP verification state
+    pendingPhoneNumber: types.maybeNull(types.string),
+    otpSent: types.optional(types.boolean, false),
   })
+  .volatile(() => ({
+    // Non-serializable confirmation object stored in volatile state
+    confirmation: null as FirebaseAuthTypes.ConfirmationResult | null,
+  }))
   .views((self) => ({
     get phoneNumber() {
       return self.user?.phoneNumber || null;
@@ -46,6 +53,15 @@ export const AuthStore = types
     setError(error: string | null) {
       self.error = error;
     },
+    setConfirmation(confirmation: FirebaseAuthTypes.ConfirmationResult | null) {
+      self.confirmation = confirmation;
+    },
+    setPendingPhoneNumber(phoneNumber: string | null) {
+      self.pendingPhoneNumber = phoneNumber;
+    },
+    setOtpSent(sent: boolean) {
+      self.otpSent = sent;
+    },
   }))
   .actions((self) => ({
     // Initialize auth listener
@@ -67,28 +83,47 @@ export const AuthStore = types
 
     // Login with phone number
     loginWithPhone: flow(function* (phoneNumber: string) {
-      self.setLoading(true);
+      // Don't set global isLoading - LoginScreen has its own loading state
+      // Setting global isLoading causes RootNavigator to remount everything
       self.setError(null);
       try {
         const fullPhoneNumber = `+91${phoneNumber}`;
         const confirmation = yield auth().signInWithPhoneNumber(fullPhoneNumber);
-        self.setLoading(false);
+
+        // Store confirmation and pending state
+        self.setConfirmation(confirmation);
+        self.setPendingPhoneNumber(phoneNumber);
+        self.setOtpSent(true);
+
         return confirmation; // Return to UI for OTP verification
       } catch (error: any) {
         console.error('[AuthStore] Login error:', error);
         self.setError(error.message);
-        self.setLoading(false);
         throw error;
       }
     }),
 
-    // Verify OTP
-    verifyOTP: flow(function* (confirmation: any, otp: string) {
+    // Verify OTP - can use stored confirmation or provided one
+    verifyOTP: flow(function* (confirmationOrOtp: any, otpCode?: string) {
       self.setLoading(true);
       self.setError(null);
       try {
+        // Support both signatures: verifyOTP(otp) or verifyOTP(confirmation, otp)
+        const confirmation = otpCode ? confirmationOrOtp : self.confirmation;
+        const otp = otpCode || confirmationOrOtp;
+
+        if (!confirmation) {
+          throw new Error('No confirmation object available');
+        }
+
         const userCredential = yield confirmation.confirm(otp);
         self.setUser(userCredential.user);
+
+        // Clear OTP verification state
+        self.setConfirmation(null);
+        self.setPendingPhoneNumber(null);
+        self.setOtpSent(false);
+
         self.setLoading(false);
         return userCredential.user;
       } catch (error: any) {
@@ -106,6 +141,12 @@ export const AuthStore = types
         yield auth().signOut();
         self.setUser(null);
         self.setError(null);
+
+        // Clear OTP state
+        self.setConfirmation(null);
+        self.setPendingPhoneNumber(null);
+        self.setOtpSent(false);
+
         self.setLoading(false);
       } catch (error: any) {
         console.error('[AuthStore] Logout error:', error);
@@ -113,6 +154,14 @@ export const AuthStore = types
         self.setLoading(false);
       }
     }),
+
+    // Reset OTP state (for editing phone number)
+    resetOtpState() {
+      self.setConfirmation(null);
+      self.setPendingPhoneNumber(null);
+      self.setOtpSent(false);
+      self.setError(null);
+    },
 
     // Reset error
     clearError() {

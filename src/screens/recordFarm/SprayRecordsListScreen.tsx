@@ -1,87 +1,126 @@
-import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, FlatList, ActivityIndicator, RefreshControl, Text as RNText, TouchableOpacity } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import {
   Header,
   Card,
   ListItem,
-  SectionHeader,
   Button,
   Badge,
   BilingualText,
   FilterBar,
   InfoBox,
 } from '../../components';
-
-interface SprayRecord {
-  id: number;
-  date: string;
-  chemicalName: string;
-  disease: string;
-  quantity: string;
-  unit: string;
-  acres: string;
-  cost: string;
-  weather: string;
-  sprayTime: string;
-  sprayMethod: string;
-  notes: string;
-  hasImage: boolean;
-}
+import sprayRecordService, { SprayRecord } from '../../services/sprayRecordService';
+import { useAuth } from '../../hooks/useAuth';
 
 interface SprayRecordsListScreenProps {
   navigation: any;
 }
 
 const SprayRecordsListScreen: React.FC<SprayRecordsListScreenProps> = ({ navigation }) => {
+  const { userId } = useAuth();
   const [selectedFilters, setSelectedFilters] = useState<string[]>(['all']);
+  const [records, setRecords] = useState<SprayRecord[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<SprayRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [records] = useState<SprayRecord[]>([
-    {
-      id: 1,
-      date: '2024-12-20',
-      chemicalName: 'ರಿಡೋಮಿಲ್ ಗೋಲ್ಡ್',
-      disease: 'ಡೌನಿ ಮಿಲ್ಡ್ಯೂ',
-      quantity: '200',
-      unit: 'ml',
-      acres: '2',
-      cost: '350',
-      weather: 'ಬಿಸಿಲು',
-      sprayTime: 'ಬೆಳಿಗ್ಗೆ',
-      sprayMethod: 'ಕೈ ಪಂಪ್',
-      notes: 'ಮಳೆಯ ನಂತರ ಸಿಂಪಡಿಸಲಾಗಿದೆ',
-      hasImage: true,
-    },
-    {
-      id: 2,
-      date: '2024-12-18',
-      chemicalName: 'ಬವಿಸ್ಟಿನ್',
-      disease: 'ಪುಡಿ ಕಾಯಿಲೆ',
-      quantity: '500',
-      unit: 'ml',
-      acres: '3',
-      cost: '280',
-      weather: 'ಮೋಡ',
-      sprayTime: 'ಸಂಜೆ',
-      sprayMethod: 'ಮೋಟಾರ್ ಪಂಪ್',
-      notes: '',
-      hasImage: false,
-    },
-    {
-      id: 3,
-      date: '2024-12-15',
-      chemicalName: 'ನೀಮ್ ಎಣ್ಣೆ',
-      disease: 'ಕೀಟ ನಿಯಂತ್ರಣ',
-      quantity: '1',
-      unit: 'liter',
-      acres: '2.5',
-      cost: '450',
-      weather: 'ಬಿಸಿಲು',
-      sprayTime: 'ಬೆಳಿಗ್ಗೆ',
-      sprayMethod: 'ಕೈ ಪಂಪ್',
-      notes: 'ಸಾವಯವ ಚಿಕಿತ್ಸೆ',
-      hasImage: true,
-    },
-  ]);
+  // Fetch spray records from Firestore
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      setError('ದಯವಿಟ್ಟು ಮೊದಲು ಲಾಗಿನ್ ಮಾಡಿ | Please login first');
+      return;
+    }
+
+    // Set a timeout to stop loading if Firestore takes too long
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 3000); // Stop loading after 3 seconds
+
+    // Subscribe to real-time updates
+    const unsubscribe = sprayRecordService.subscribeToUserRecords(
+      userId,
+      (fetchedRecords) => {
+        clearTimeout(loadingTimeout);
+        setRecords(fetchedRecords);
+        setLoading(false);
+        setRefreshing(false);
+        setError(null);
+      }
+    );
+
+    // Cleanup subscription and timeout on unmount
+    return () => {
+      clearTimeout(loadingTimeout);
+      unsubscribe();
+    };
+  }, [userId]);
+
+  // Pull-to-refresh handler
+  const handleRefresh = async () => {
+    if (!userId) return;
+
+    setRefreshing(true);
+    try {
+      const fetchedRecords = await sprayRecordService.getUserSprayRecords(userId);
+      setRecords(fetchedRecords);
+      setError(null);
+    } catch (err) {
+      console.error('Error refreshing records:', err);
+      setError('ದಾಖಲೆಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ವಿಫಲವಾಗಿದೆ | Failed to load records');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Filter records based on selected filter
+  useEffect(() => {
+    if (!records.length) {
+      setFilteredRecords([]);
+      setFilterLoading(false);
+      return;
+    }
+
+    // Show loading when filter changes
+    setFilterLoading(true);
+
+    const filterType = selectedFilters[0] || 'all';
+    const now = new Date();
+    const filtered = records.filter(record => {
+      if (filterType === 'all') {
+        return true;
+      }
+
+      const recordDate = new Date(record.date);
+
+      if (filterType === 'week') {
+        // Last 7 days
+        const weekAgo = new Date(now);
+        weekAgo.setDate(now.getDate() - 7);
+        return recordDate >= weekAgo && recordDate <= now;
+      }
+
+      if (filterType === 'month') {
+        // Current month
+        return (
+          recordDate.getMonth() === now.getMonth() &&
+          recordDate.getFullYear() === now.getFullYear()
+        );
+      }
+
+      return true;
+    });
+
+    // Small delay to show loading effect
+    setTimeout(() => {
+      setFilteredRecords(filtered);
+      setFilterLoading(false);
+    }, 200);
+  }, [records, selectedFilters]);
 
   const filterOptions = [
     { label: '📅 ಎಲ್ಲಾ | All', value: 'all' },
@@ -90,7 +129,7 @@ const SprayRecordsListScreen: React.FC<SprayRecordsListScreenProps> = ({ navigat
   ];
 
   const getTotalCost = (): number => {
-    return records.reduce((sum, record) => sum + parseFloat(record.cost || '0'), 0);
+    return filteredRecords.reduce((sum, record) => sum + parseFloat(record.cost || '0'), 0);
   };
 
   const handleFilterChange = (value: string) => {
@@ -98,7 +137,7 @@ const SprayRecordsListScreen: React.FC<SprayRecordsListScreenProps> = ({ navigat
   };
 
   const handleViewDetails = (record: SprayRecord) => {
-    console.log('View details:', record);
+    navigation.navigate('SprayRecordDetail', { record });
   };
 
   const handleAddNew = () => {
@@ -115,17 +154,26 @@ const SprayRecordsListScreen: React.FC<SprayRecordsListScreenProps> = ({ navigat
           separator=""
         />
         <View style={styles.badges}>
-          {item.hasImage && <Badge label="📷" variant="info" size="small" />}
           <Badge label={`₹${item.cost}`} variant="success" size="small" />
         </View>
       </View>
 
-      <ListItem
-        title={item.chemicalName}
-        subtitle={`🦠 ${item.disease} • 📊 ${item.quantity} ${item.unit} • 🌾 ${item.acres} ಎಕರೆ`}
-        rightIcon="→"
+      <TouchableOpacity
+        style={styles.recordContent}
         onPress={() => handleViewDetails(item)}
-      />
+        activeOpacity={0.7}
+      >
+        <View style={styles.recordInfo}>
+          <RNText style={styles.chemicalName}>{item.chemicalName}</RNText>
+          <RNText style={styles.recordDetails}>
+            🦠 {item.disease} • 📊 {item.quantity} {item.unit} • 🌾 {item.acres} ಎಕರೆ
+          </RNText>
+        </View>
+
+        {item.imageUrl && (
+          <FastImage source={{ uri: item.imageUrl }} style={styles.circularImage} resizeMode={FastImage.resizeMode.cover} />
+        )}
+      </TouchableOpacity>
 
       {item.notes && (
         <InfoBox
@@ -147,6 +195,25 @@ const SprayRecordsListScreen: React.FC<SprayRecordsListScreenProps> = ({ navigat
         style={styles.header}
       />
 
+      {error && (
+        <InfoBox
+          message={error}
+          variant="error"
+          style={styles.errorBox}
+        />
+      )}
+
+      {loading && (
+        <View style={styles.loadingBanner}>
+          <ActivityIndicator size="small" color="#16a34a" />
+          <BilingualText
+            kannada="ಲೋಡ್ ಆಗುತ್ತಿದೆ..."
+            english="Loading..."
+            style={styles.loadingBannerText}
+          />
+        </View>
+      )}
+
       <View style={styles.statsContainer}>
         <Card style={styles.statsCard}>
           <View style={styles.statsRow}>
@@ -156,7 +223,7 @@ const SprayRecordsListScreen: React.FC<SprayRecordsListScreenProps> = ({ navigat
                 english="Records"
                 style={styles.statLabel}
               />
-              <Badge label={`${records.length}`} variant="primary" />
+              <Badge label={`${filteredRecords.length}`} variant="primary" />
             </View>
             <View style={styles.statItem}>
               <BilingualText
@@ -177,17 +244,42 @@ const SprayRecordsListScreen: React.FC<SprayRecordsListScreenProps> = ({ navigat
         style={styles.filterBar}
       />
 
+      {filterLoading && (
+        <View style={styles.filterLoadingContainer}>
+          <ActivityIndicator size="small" color="#16a34a" />
+          <RNText style={styles.filterLoadingText}>
+            ಫಿಲ್ಟರ್ ಮಾಡಲಾಗುತ್ತಿದೆ... | Filtering...
+          </RNText>
+        </View>
+      )}
+
       <FlatList
-        data={records}
+        data={filteredRecords}
         renderItem={renderRecord}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.id || ''}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <InfoBox
-            message="ಯಾವುದೇ ದಾಖಲೆಗಳಿಲ್ಲ | No records found"
-            variant="info"
-            style={styles.emptyMessage}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#16a34a']}
           />
+        }
+        ListEmptyComponent={
+          !loading && (
+            <View style={styles.emptyContainer}>
+              <BilingualText
+                kannada={selectedFilters[0] === 'all' ? 'ಯಾವುದೇ ದಾಖಲೆಗಳಿಲ್ಲ' : 'ಈ ಅವಧಿಯಲ್ಲಿ ಯಾವುದೇ ದಾಖಲೆಗಳಿಲ್ಲ'}
+                english={selectedFilters[0] === 'all' ? 'No Records Yet' : 'No Records in This Period'}
+                style={styles.emptyTitle}
+              />
+              <BilingualText
+                kannada="ಹೊಸ ಸ್ಪ್ರೇ ದಾಖಲೆ ಸೇರಿಸಲು ಕೆಳಗಿನ ಬಟನ್ ಒತ್ತಿ"
+                english="Press the button below to add a spray record"
+                style={styles.emptySubtitle}
+              />
+            </View>
+          )
         }
       />
 
@@ -208,6 +300,24 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#16a34a',
+  },
+  loadingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#f0fdf4',
+    borderBottomWidth: 1,
+    borderBottomColor: '#bbf7d0',
+    gap: 8,
+  },
+  loadingBannerText: {
+    fontSize: 14,
+    color: '#16a34a',
+  },
+  errorBox: {
+    marginHorizontal: 16,
+    marginTop: 16,
   },
   statsContainer: {
     paddingHorizontal: 16,
@@ -256,17 +366,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  recordContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+  },
+  recordInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  chemicalName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  recordDetails: {
+    fontSize: 13,
+    color: '#6b7280',
+    lineHeight: 20,
+  },
+  circularImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#e5e7eb',
+    borderWidth: 3,
+    borderColor: '#16a34a',
+  },
   notesBox: {
     marginTop: 12,
   },
-  emptyMessage: {
-    marginTop: 40,
+  emptyContainer: {
+    marginTop: 60,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#374151',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   addButton: {
     position: 'absolute',
     bottom: 20,
     left: 16,
     right: 16,
+  },
+  filterLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#f0fdf4',
+    borderBottomWidth: 1,
+    borderBottomColor: '#bbf7d0',
+    gap: 8,
+  },
+  filterLoadingText: {
+    fontSize: 14,
+    color: '#16a34a',
+    fontWeight: '500',
   },
 });
 

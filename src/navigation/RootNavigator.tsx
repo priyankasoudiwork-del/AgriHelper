@@ -16,6 +16,9 @@ import WeatherPredictionScreen from '../screens/weather/WeatherPredictionPage';
 import ProductScannerScreen from '../screens/ai_chat/ProductScannerScreen';
 import SprayRecordsListScreen from '../screens/recordFarm/SprayRecordsListScreen';
 import AddSprayRecordScreen from '../screens/recordFarm/AddSprayRecordScreen';
+import EditSprayRecordScreen from '../screens/recordFarm/EditSprayRecordScreen';
+import SprayRecordDetailScreen from '../screens/recordFarm/SprayRecordDetailScreen';
+import AiChatScreen from '../screens/aiChat/AiChatScreen';
 import FarmInfo from '../screens/agriNews/FramInfo';
 
 // Create single stack navigator
@@ -44,14 +47,16 @@ const RootNavigator = observer(() => {
         animation: 'slide_from_right',
       }}
     >
+      {/* Splash screen always shows first */}
+      <RootStack.Screen
+        name="Splash"
+        component={SplashScreen}
+        options={{ animation: 'fade' }}
+      />
+
       {!isAuthenticated ? (
         // AUTH FLOW - User not logged in
         <>
-          <RootStack.Screen
-            name="Splash"
-            component={SplashScreen}
-            options={{ animation: 'fade' }}
-          />
           <RootStack.Screen
             name="AppIntro"
             component={AppIntroScreen}
@@ -83,6 +88,18 @@ const RootNavigator = observer(() => {
           <RootStack.Screen
             name="AddSprayRecord"
             component={AddSprayRecordScreen}
+          />
+          <RootStack.Screen
+            name="EditSprayRecord"
+            component={EditSprayRecordScreen}
+          />
+          <RootStack.Screen
+            name="SprayRecordDetail"
+            component={SprayRecordDetailScreen}
+          />
+          <RootStack.Screen
+            name="AiChat"
+            component={AiChatScreen}
           />
           <RootStack.Screen
             name="FarmInfo"

@@ -12,10 +12,15 @@ export const useAuth = () => {
     phoneNumber: authStore.phoneNumber,
     userId: authStore.userId,
 
+    // OTP verification state
+    otpSent: authStore.otpSent,
+    pendingPhoneNumber: authStore.pendingPhoneNumber,
+
     // Actions
     loginWithPhone: authStore.loginWithPhone,
     verifyOTP: authStore.verifyOTP,
     logout: authStore.logout,
+    resetOtpState: authStore.resetOtpState,
     clearError: authStore.clearError,
   };
 };

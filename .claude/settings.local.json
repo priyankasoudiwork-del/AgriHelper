@@ -5,7 +5,10 @@
       "Bash(./gradlew signingReport:*)",
       "WebSearch",
       "WebFetch(domain:rnfirebase.io)",
-      "Bash(adb logcat:*)"
+      "Bash(adb logcat:*)",
+      "Bash(rm:*)",
+      "Bash(./gradlew clean:*)",
+      "Bash(yarn android)"
     ]
   }
 }

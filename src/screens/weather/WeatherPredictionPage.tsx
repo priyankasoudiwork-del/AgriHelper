@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Alert,
   Platform,
   PermissionsAndroid,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import {
@@ -58,72 +60,419 @@ interface WeatherPredictionPageProps {
   navigation: any;
 }
 
+interface LocationSuggestion {
+  name: string;
+  state: string;
+  country: string;
+  lat: number;
+  lon: number;
+  displayName?: string;
+}
+
+const WeatherLoadingAnimation: React.FC = () => {
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [currentIconIndex, setCurrentIconIndex] = useState(0);
+
+  const weatherIcons = [
+    { icon: '🌾', label: 'Analyzing crops' },
+    { icon: '📊', label: 'Reading data' },
+    { icon: '🌧️', label: 'Checking rain' },
+    { icon: '🌡️', label: 'Reading temp' },
+  ];
+
+  useEffect(() => {
+    const cycleIcons = () => {
+      // Fade out and scale down
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.8,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Change icon
+        setCurrentIconIndex((prev) => (prev + 1) % weatherIcons.length);
+
+        // Fade in and scale up
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    };
+
+    const interval = setInterval(cycleIcons, 1500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Pulse animation for the icon
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  return (
+    <View style={weatherLoadingStyles.container}>
+      <View style={weatherLoadingStyles.iconContainer}>
+        <Animated.Text
+          style={[
+            weatherLoadingStyles.mainIcon,
+            {
+              opacity: fadeAnim,
+              transform: [
+                { scale: Animated.multiply(scaleAnim, pulseAnim) },
+              ],
+            },
+          ]}
+        >
+          {weatherIcons[currentIconIndex].icon}
+        </Animated.Text>
+      </View>
+
+      <View style={weatherLoadingStyles.loadingBars}>
+        <View style={[weatherLoadingStyles.bar, { height: 30, animationDelay: 0 }]} />
+        <View style={[weatherLoadingStyles.bar, { height: 50, animationDelay: 100 }]} />
+        <View style={[weatherLoadingStyles.bar, { height: 40, animationDelay: 200 }]} />
+        <View style={[weatherLoadingStyles.bar, { height: 60, animationDelay: 300 }]} />
+      </View>
+
+      <Text style={weatherLoadingStyles.loadingText}>
+        ಹವಾಮಾನ ಡೇಟಾ ಪಡೆಯಲಾಗುತ್ತಿದೆ...
+      </Text>
+      <Text style={weatherLoadingStyles.loadingTextEn}>
+        Fetching weather data
+      </Text>
+    </View>
+  );
+};
+
+const weatherLoadingStyles = StyleSheet.create({
+  container: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: '#0284c7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  mainIcon: {
+    fontSize: 56,
+  },
+  loadingBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    height: 70,
+    marginBottom: 20,
+  },
+  bar: {
+    width: 12,
+    backgroundColor: '#0284c7',
+    borderRadius: 6,
+    opacity: 0.7,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  loadingTextEn: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+});
+
 const WeatherPredictionPage: React.FC<WeatherPredictionPageProps> = ({ navigation }) => {
   const [location, setLocation] = useState('');
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [forecast, setForecast] = useState<ForecastDay[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const WEATHER_API_KEY = '6aff63fa2d7876c6e45ab4c3952ac7de';
 
+  // Karnataka boundaries (approximate)
+  const KARNATAKA_BOUNDS = {
+    minLat: 11.5,
+    maxLat: 18.5,
+    minLon: 74.0,
+    maxLon: 78.5,
+  };
+
+  const isInKarnataka = (lat: number | string, lon: number | string): boolean => {
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+  
+    console.log("lat======,", latitude, "long====", longitude);
+  
+    return (
+      latitude >= KARNATAKA_BOUNDS.minLat &&
+      latitude <= KARNATAKA_BOUNDS.maxLat &&
+      longitude >= KARNATAKA_BOUNDS.minLon &&
+      longitude <= KARNATAKA_BOUNDS.maxLon
+    );
+  };
+  
+
   useEffect(() => {
     getCurrentLocation();
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
   }, []);
 
-  const getCurrentLocation = async () => {
-    setLoading(true);
-    setError('');
+const getCurrentLocation = async () => {
+  setLoading(true);
+  setError('');
 
-    try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'ಸ್ಥಳ ಅನುಮತಿ | Location Permission',
-            message: 'ಹವಾಮಾನ ಡೇಟಾಗಾಗಿ ನಿಮ್ಮ ಸ್ಥಳದ ಪ್ರವೇಶ ಅಗತ್ಯವಿದೆ | This app needs access to your location for weather data',
-            buttonPositive: 'ಸರಿ | OK',
-          }
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          setError('ಸ್ಥಳ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ | Location permission denied');
+  try {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'ಸ್ಥಳ ಅನುಮತಿ | Location Permission',
+          message: 'ಹವಾಮಾನ ಡೇಟಾಗಾಗಿ ನಿಮ್ಮ ಸ್ಥಳದ ಪ್ರವೇಶ ಅಗತ್ಯವಿದೆ | This app needs access to your location for weather data',
+          buttonPositive: 'ಸರಿ | OK',
+        }
+      );
+
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        setError('ಸ್ಥಳ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ | Location permission denied');
+        setLoading(false);
+        return;
+      }
+    }
+
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+
+        console.log('📍 Raw GPS:', latitude, longitude);
+
+        // Ignore Google / Emulator fallback location
+        if (
+          latitude === 37.421998 &&
+          longitude === -122.084
+        ) {
+          setError(
+            'ನಿಜವಾದ ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ. GPS ಆನ್ ಮಾಡಿ ಮತ್ತು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ | Unable to get real location. Please turn on GPS and try again.'
+          );
           setLoading(false);
           return;
         }
+
+        // Optional: restrict only to Karnataka
+        // if (!isInKarnataka(latitude, longitude)) {
+        //   setError('ಈ ಸ್ಥಳ ಕರ್ನಾಟಕದಲ್ಲಿ ಇಲ್ಲ | This location is not in Karnataka.');
+        //   setLoading(false);
+        //   return;
+        // }
+
+        fetchWeatherByCoords(latitude, longitude);
+      },
+      (error) => {
+        let errorMsg = 'ಸ್ಥಳ ಪಡೆಯಲು ಸಾಧ್ಯವಾಗಿಲ್ಲ | Unable to get location';
+
+        if (error.code === 1) {
+          errorMsg = 'ಸ್ಥಳ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ | Location permission denied';
+        } else if (error.code === 2) {
+          errorMsg = 'ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ | Location unavailable';
+        } else if (error.code === 3) {
+          errorMsg = 'ಸಮಯ ಮೀರಿದೆ | Request timeout';
+        }
+
+        setError(errorMsg + ' ದಯವಿಟ್ಟು ಹಸ್ತಚಾಲಿತವಾಗಿ ನಮೂದಿಸಿ | Please enter manually.');
+        setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 0,
       }
+    );
+  } catch (err) {
+    setError('ಸ್ಥಳ ಪಡೆಯಲು ವಿಫಲವಾಗಿದೆ | Failed to get location. Please enter manually.');
+    setLoading(false);
+  }
+};
 
-      Geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          fetchWeatherByCoords(latitude, longitude);
-        },
-        (error) => {
-          let errorMsg = 'ಸ್ಥಳ ಪಡೆಯಲು ಸಾಧ್ಯವಾಗಿಲ್ಲ | Unable to get location';
 
-          if (error.code === 1) {
-            errorMsg = 'ಸ್ಥಳ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ | Location permission denied';
-          } else if (error.code === 2) {
-            errorMsg = 'ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ | Location unavailable';
-          } else if (error.code === 3) {
-            errorMsg = 'ಸಮಯ ಮೀರಿದೆ | Request timeout';
-          }
+  const fetchLocationSuggestions = async (query: string) => {
+    if (!query || query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
 
-          setError(errorMsg + ' ದಯವಿಟ್ಟು ಹಸ್ತಚಾಲಿತವಾಗಿ ನಮೂದಿಸಿ | Please enter manually.');
-          setLoading(false);
-        },
+    try {
+      // Use Nominatim (OpenStreetMap) API for better Indian location coverage
+      // This includes villages, towns, and cities across Karnataka
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?` +
+        `q=${encodeURIComponent(query)},Karnataka,India&` +
+        `format=json&` +
+        `addressdetails=1&` +
+        `limit=15&` +
+        `countrycodes=in`,
         {
-          enableHighAccuracy: true,
-          timeout: 20000,
-          maximumAge: 1000,
+          headers: {
+            'User-Agent': 'AgriHelper-WeatherApp/1.0'
+          }
         }
       );
+
+      if (!response.ok) {
+        setSuggestions([]);
+        return;
+      }
+
+      const data = await response.json();
+
+      // Debug: Log raw API response
+      console.log('🔍 Nominatim API Response for:', query);
+      console.log('📍 Found locations:', data.length);
+      if (data.length > 0) {
+        console.log('📌 First result:', {
+          name: data[0].display_name,
+          lat: data[0].lat,
+          lon: data[0].lon,
+          type: data[0].type,
+          address: data[0].address
+        });
+      }
+
+      // Filter and map Karnataka locations
+      const karnatakaLocations = data
+        .filter((loc: any) => {
+          const lat = parseFloat(loc.lat);
+          const lon = parseFloat(loc.lon);
+
+          // Only include if within Karnataka boundaries
+          if (!isInKarnataka(lat, lon)) {
+            return false;
+          }
+
+          // Filter to include cities, towns, villages, and localities
+          const validTypes = ['city', 'town', 'village', 'hamlet', 'suburb', 'municipality', 'administrative'];
+          return validTypes.some(type => loc.type?.includes(type) || loc.class?.includes(type));
+        })
+        .map((loc: any) => {
+          // Extract clean location name
+          const name = loc.address?.village ||
+                      loc.address?.town ||
+                      loc.address?.city ||
+                      loc.address?.municipality ||
+                      loc.address?.suburb ||
+                      loc.name ||
+                      loc.display_name.split(',')[0];
+
+          return {
+            name: name,
+            state: loc.address?.state || 'Karnataka',
+            country: 'India',
+            lat: parseFloat(loc.lat),
+            lon: parseFloat(loc.lon),
+            displayName: loc.display_name,
+          };
+        })
+        // Remove duplicates by name
+        .filter((loc: any, index: number, self: any[]) =>
+          index === self.findIndex((l) => l.name === loc.name)
+        )
+        .slice(0, 10); // Limit to 10 suggestions
+
+      setSuggestions(karnatakaLocations);
+      setShowSuggestions(karnatakaLocations.length > 0);
     } catch (err) {
-      setError('ಸ್ಥಳ ಪಡೆಯಲು ವಿಫಲವಾಗಿದೆ | Failed to get location. Please enter manually.');
-      setLoading(false);
+      console.error('Error fetching suggestions:', err);
+      setSuggestions([]);
     }
   };
 
+  const handleLocationChange = (text: string) => {
+    setLocation(text);
+
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Debounce search - wait 500ms after user stops typing
+    const timeout = setTimeout(() => {
+      fetchLocationSuggestions(text);
+    }, 500);
+
+    setSearchTimeout(timeout);
+  };
+
+  const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
+    setLocation(suggestion.name);
+    setShowSuggestions(false);
+    setSuggestions([]);
+
+    // Immediately fetch weather for selected location
+    fetchWeatherByCoords(suggestion.lat, suggestion.lon);
+  };
+
   const fetchWeatherByCoords = async (lat: number, lon: number) => {
+    // Check if location is in Karnataka
+    // if (!isInKarnataka(lat, lon)) {
+    //   setError('ಈ ಸ್ಥಳ ಕರ್ನಾಟಕದಲ್ಲಿ ಇಲ್ಲ | This location is not in Karnataka. Please enter a location within Karnataka.');
+    //   setLoading(false);
+    //   return;
+    // }
+
     try {
       const currentResponse = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${WEATHER_API_KEY}`
@@ -157,29 +506,49 @@ const WeatherPredictionPage: React.FC<WeatherPredictionPageProps> = ({ navigatio
     setError('');
 
     try {
-      const currentResponse = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&units=metric&appid=${WEATHER_API_KEY}`
+      // Use Nominatim for better coverage of Indian villages
+      const geocodeResponse = await fetch(
+        `https://nominatim.openstreetmap.org/search?` +
+        `q=${encodeURIComponent(cityName)},Karnataka,India&` +
+        `format=json&` +
+        `addressdetails=1&` +
+        `limit=5&` +
+        `countrycodes=in`,
+        {
+          headers: {
+            'User-Agent': 'AgriHelper-WeatherApp/1.0'
+          }
+        }
       );
 
-      if (!currentResponse.ok) {
-        throw new Error('City not found');
+      if (!geocodeResponse.ok) {
+        throw new Error('Location not found');
       }
 
-      const currentData = await currentResponse.json();
+      const geocodeData = await geocodeResponse.json();
 
-      const forecastResponse = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&units=metric&appid=${WEATHER_API_KEY}`
-      );
-
-      if (!forecastResponse.ok) {
-        throw new Error('Forecast data fetch failed');
+      if (!geocodeData || geocodeData.length === 0) {
+        setError('ಸ್ಥಳ ಕಂಡುಬಂದಿಲ್ಲ | Location not found. Please check spelling or try nearby town.');
+        setLoading(false);
+        return;
       }
 
-      const forecastData = await forecastResponse.json();
+      // Use the first result
+      const location = geocodeData[0];
+      const lat = parseFloat(location.lat);
+      const lon = parseFloat(location.lon);
 
-      processWeatherData(currentData, forecastData);
+      // Check if location is in Karnataka
+      // if (!isInKarnataka(lat, lon)) {
+      //   setError('ಈ ಸ್ಥಳ ಕರ್ನಾಟಕದಲ್ಲಿ ಇಲ್ಲ | This location is not in Karnataka. Please enter a Karnataka location.');
+      //   setLoading(false);
+      //   return;
+      // }
+
+      // Fetch weather using coordinates
+      await fetchWeatherByCoords(lat, lon);
     } catch (err) {
-      setError('City not found. Please try again.');
+      setError('ಸ್ಥಳ ಕಂಡುಬಂದಿಲ್ಲ | Location not found. Please try again with correct spelling.');
       setLoading(false);
     }
   };
@@ -276,6 +645,9 @@ const WeatherPredictionPage: React.FC<WeatherPredictionPageProps> = ({ navigatio
   };
 
   const handleSearch = () => {
+    setShowSuggestions(false);
+    setSuggestions([]);
+
     if (location.trim()) {
       fetchWeatherByCity(location);
     }
@@ -284,7 +656,7 @@ const WeatherPredictionPage: React.FC<WeatherPredictionPageProps> = ({ navigatio
   const getSprayAdvice = (): SprayAdvice | null => {
     if (!weatherData) return null;
 
-    if (weatherData.rainChance > 60) {
+    if (weatherData.rainChance > 70) {
       return {
         icon: '❌',
         title: 'ಇಂದು ಸಿಂಪಡಿಸಬೇಡಿ',
@@ -294,7 +666,7 @@ const WeatherPredictionPage: React.FC<WeatherPredictionPageProps> = ({ navigatio
         color: '#ef4444',
         bgColor: '#fee2e2',
       };
-    } else if (weatherData.rainChance > 30) {
+    } else if (weatherData.rainChance > 55) {
       return {
         icon: '⚠️',
         title: 'ಎಚ್ಚರಿಕೆ',
@@ -333,10 +705,31 @@ const WeatherPredictionPage: React.FC<WeatherPredictionPageProps> = ({ navigatio
         <View style={styles.searchSection}>
           <SearchBar
             value={location}
-            onChangeText={setLocation}
-            placeholder="ನಿಮ್ಮ ಸ್ಥಳ | Your Location"
+            onChangeText={handleLocationChange}
+            placeholder="ನಿಮ್ಮ ಸ್ಥಳ ಹುಡುಕಿ | Search Karnataka location"
             onSearch={handleSearch}
           />
+
+          {/* Location Suggestions Dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((suggestion, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.suggestionItem}
+                  onPress={() => handleSuggestionSelect(suggestion)}
+                >
+                  <Text style={styles.suggestionIcon}>📍</Text>
+                  <View style={styles.suggestionText}>
+                    <Text style={styles.suggestionName}>{suggestion.name}</Text>
+                    <Text style={styles.suggestionState}>
+                      {suggestion.state}, {suggestion.country}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <Button
             title="📍 ಪ್ರಸ್ತುತ ಸ್ಥಳ ಬಳಸಿ | Use Current Location"
@@ -355,10 +748,7 @@ const WeatherPredictionPage: React.FC<WeatherPredictionPageProps> = ({ navigatio
         ) : null}
 
         {loading ? (
-          <Loading
-            message="ಹವಾಮಾನ ಮಾಹಿತಿ ಲೋಡ್ ಆಗುತ್ತಿದೆ... | Loading weather data..."
-            style={styles.loading}
-          />
+          <WeatherLoadingAnimation />
         ) : weatherData ? (
           <>
             <Card style={styles.weatherCard}>
@@ -652,6 +1042,41 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 40,
+  },
+  suggestionsContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginTop: 8,
+    maxHeight: 250,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    gap: 12,
+  },
+  suggestionIcon: {
+    fontSize: 20,
+  },
+  suggestionText: {
+    flex: 1,
+  },
+  suggestionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  suggestionState: {
+    fontSize: 13,
+    color: '#6b7280',
   },
 });
 

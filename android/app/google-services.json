@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:734253994884:android:8dd4de791ff837222ac3d1",
+        "mobilesdk_app_id": "1:734253994884:android:2c00d7a7339b37992ac3d1",
         "android_client_info": {
-          "package_name": "com.priyanka.agrihelp"
+          "package_name": "com.priyanka.agrihelper"
         }
       },
       "oauth_client": [],

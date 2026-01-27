@@ -1,55 +1,118 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  Animated,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  StatusBar,
+} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { ScreenProps } from '../types';
 
+const { width, height } = Dimensions.get('window');
+
 interface Slide {
+  id: string;
   title: string;
   titleEn: string;
   description: string;
   descriptionEn: string;
   image: string;
-  color: string;
+  gradientColors: string[];
 }
+
+const slides: Slide[] = [
+  {
+    id: '1',
+    title: 'ನಿಮ್ಮ ರಾಸಾಯನಿಕ ಸ್ಪ್ರೇಯನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ',
+    titleEn: 'Track Your Chemical Sprays',
+    description:
+      'ನೀವು ಯಾವ ರಾಸಾಯನಿಕವನ್ನು ಬಳಸಿದ್ದೀರಿ, ಎಷ್ಟು ಪ್ರಮಾಣ ಮತ್ತು ಯಾವ ದಿನಾಂಕದಲ್ಲಿ ಬಳಸಿದ್ದೀರಿ ಎಂಬುದನ್ನು ಸುಲಭವಾಗಿ ದಾಖಲಿಸಿ.',
+    descriptionEn:
+      'Easily record which chemical you used, how much quantity, and on which date.',
+    image: '🌿',
+    gradientColors: ['#059669', '#10b981', '#34d399'],
+  },
+  {
+    id: '2',
+    title: 'ನಿಮ್ಮ ಖರ್ಚುಗಳನ್ನು ತಿಳಿಯಿರಿ',
+    titleEn: 'Know Your Expenses',
+    description:
+      'ದಿನ, ವಾರ ಮತ್ತು ತಿಂಗಳ ಖರ್ಚುಗಳನ್ನು ಸರಳ ಗ್ರಾಫ್‌ಗಳಲ್ಲಿ ನೋಡಿ. ನೀವು ಪ್ರತಿ ತಿಂಗಳು ಎಷ್ಟು ಖರ್ಚು ಮಾಡುತ್ತಿದ್ದೀರಿ ಎಂದು ತಿಳಿಯಿರಿ.',
+    descriptionEn:
+      'See daily, weekly and monthly expenses in simple graphs.',
+    image: '📊',
+    gradientColors: ['#1d4ed8', '#3b82f6', '#60a5fa'],
+  },
+  {
+    id: '3',
+    title: 'ಹಣವನ್ನು ಉಳಿಸಿ',
+    titleEn: 'Save Money',
+    description:
+      'ಅನಗತ್ಯ ಸ್ಪ್ರೇ ಮಾಡುವುದನ್ನು ತಪ್ಪಿಸಿ. ಅತಿಯಾದ ಖರ್ಚು ಮಾಡುವುದನ್ನು ನಿಲ್ಲಿಸಿ.',
+    descriptionEn:
+      'Avoid repeated spraying. Stop over-spending. Manage your farm easily.',
+    image: '💰',
+    gradientColors: ['#d97706', '#f59e0b', '#fbbf24'],
+  },
+];
 
 export default function AppIntroScreen({ navigation }: ScreenProps<'AppIntro'>) {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
 
-  const slides: Slide[] = [
-    {
-      title: "ನಿಮ್ಮ ರಾಸಾಯನಿಕ ಸ್ಪ್ರೇಯನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ",
-      titleEn: "Track Your Chemical Sprays",
-      description: "ನೀವು ಯಾವ ರಾಸಾಯನಿಕವನ್ನು ಬಳಸಿದ್ದೀರಿ, ಎಷ್ಟು ಪ್ರಮಾಣ ಮತ್ತು ಯಾವ ದಿನಾಂಕದಲ್ಲಿ ಬಳಸಿದ್ದೀರಿ ಎಂಬುದನ್ನು ಸುಲಭವಾಗಿ ದಾಖಲಿಸಿ.",
-      descriptionEn: "Easily record which chemical you used, how much quantity, and on which date.",
-      image: "🌿",
-      color: "#10b981"
-    },
-    {
-      title: "ನಿಮ್ಮ ಖರ್ಚುಗಳನ್ನು ತಿಳಿಯಿರಿ",
-      titleEn: "Know Your Expenses",
-      description: "ದಿನ, ವಾರ ಮತ್ತು ತಿಂಗಳ ಖರ್ಚುಗಳನ್ನು ಸರಳ ಗ್ರಾಫ್‌ಗಳಲ್ಲಿ ನೋಡಿ. ನೀವು ಪ್ರತಿ ತಿಂಗಳು ಎಷ್ಟು ಖರ್ಚು ಮಾಡುತ್ತಿದ್ದೀರಿ ಎಂದು ತಿಳಿಯಿರಿ.",
-      descriptionEn: "See daily, weekly and monthly expenses in simple graphs. Know how much you spend every month.",
-      image: "📊",
-      color: "#3b82f6"
-    },
-    {
-      title: "ಹಣವನ್ನು ಉಳಿಸಿ",
-      titleEn: "Save Money",
-      description: "ಅನಗತ್ಯ ಸ್ಪ್ರೇ ಮಾಡುವುದನ್ನು ತಪ್ಪಿಸಿ. ಅತಿಯಾದ ಖರ್ಚು ಮಾಡುವುದನ್ನು ನಿಲ್ಲಿಸಿ. ನಿಮ್ಮ ಫಾರ್ಮ್ ಖರ್ಚುಗಳನ್ನು ಸುಲಭವಾಗಿ ನಿರ್ವಹಿಸಿ.",
-      descriptionEn: "Avoid repeated spraying. Stop over-spending. Manage your farm expenses easily.",
-      image: "💰",
-      color: "#f59e0b"
-    }
-  ];
+  // Animation values for content
+  const iconBounce = useRef(new Animated.Value(0)).current;
 
-  const goToNext = () => {
-    if (currentSlide < slides.length - 1) {
-      setCurrentSlide(currentSlide + 1);
+  // Start icon bounce animation on mount and slide change
+  useEffect(() => {
+    startIconAnimation();
+  }, [currentSlide]);
+
+  const startIconAnimation = () => {
+    iconBounce.setValue(0);
+    Animated.sequence([
+      Animated.spring(iconBounce, {
+        toValue: -15,
+        tension: 100,
+        friction: 5,
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconBounce, {
+        toValue: 0,
+        tension: 100,
+        friction: 5,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    { useNativeDriver: false }
+  );
+
+  const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / width);
+    if (index !== currentSlide) {
+      setCurrentSlide(index);
     }
   };
 
-  const goToPrev = () => {
-    if (currentSlide > 0) {
-      setCurrentSlide(currentSlide - 1);
+  const goToSlide = (index: number) => {
+    flatListRef.current?.scrollToIndex({ index, animated: true });
+    setCurrentSlide(index);
+  };
+
+  const goToNext = () => {
+    if (currentSlide < slides.length - 1) {
+      goToSlide(currentSlide + 1);
     }
   };
 
@@ -61,99 +124,166 @@ export default function AppIntroScreen({ navigation }: ScreenProps<'AppIntro'>) 
     navigation.navigate('Login');
   };
 
-  const slide = slides[currentSlide];
+  const renderSlide = ({ item, index }: { item: Slide; index: number }) => {
+    const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
+
+    const opacity = scrollX.interpolate({
+      inputRange,
+      outputRange: [0.4, 1, 0.4],
+      extrapolate: 'clamp',
+    });
+
+    const scale = scrollX.interpolate({
+      inputRange,
+      outputRange: [0.9, 1, 0.9],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <View style={styles.slide}>
+        <LinearGradient
+          colors={item.gradientColors}
+          style={styles.gradientBackground}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          {/* Skip button */}
+          {currentSlide < slides.length - 1 && (
+            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          )}
+
+          <Animated.View
+            style={[
+              styles.slideContent,
+              { opacity, transform: [{ scale }] },
+            ]}
+          >
+            {/* Icon with bounce animation */}
+            <Animated.View
+              style={[
+                styles.iconContainer,
+                {
+                  transform: [
+                    { translateY: index === currentSlide ? iconBounce : 0 },
+                  ],
+                },
+              ]}
+            >
+              <View style={styles.iconCircle}>
+                <Text style={styles.iconEmoji}>{item.image}</Text>
+              </View>
+            </Animated.View>
+
+            {/* Titles */}
+            <View style={styles.textContainer}>
+              <Text style={styles.titleKannada}>{item.title}</Text>
+              <Text style={styles.titleEnglish}>{item.titleEn}</Text>
+            </View>
+
+            {/* Description */}
+            <View style={styles.descriptionContainer}>
+              <Text style={styles.descriptionKannada}>{item.description}</Text>
+              <Text style={styles.descriptionEnglish}>{item.descriptionEn}</Text>
+            </View>
+          </Animated.View>
+
+          {/* Bottom controls - integrated into slide */}
+          <View style={styles.bottomControls}>
+            {renderDots()}
+
+            <View style={styles.buttonContainer}>
+              {currentSlide < slides.length - 1 ? (
+                <TouchableOpacity
+                  style={styles.nextButton}
+                  onPress={goToNext}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.nextButtonText}>Next</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.startButton}
+                  onPress={handleStart}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.startButtonText}>Get Started</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  };
+
+  // Animated dots
+  const renderDots = () => {
+    return (
+      <View style={styles.dotsContainer}>
+        {slides.map((_, index) => {
+          const inputRange = [
+            (index - 1) * width,
+            index * width,
+            (index + 1) * width,
+          ];
+
+          const dotWidth = scrollX.interpolate({
+            inputRange,
+            outputRange: [8, 24, 8],
+            extrapolate: 'clamp',
+          });
+
+          const dotOpacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.4, 1, 0.4],
+            extrapolate: 'clamp',
+          });
+
+          return (
+            <TouchableOpacity
+              key={index}
+              onPress={() => goToSlide(index)}
+              activeOpacity={0.8}
+            >
+              <Animated.View
+                style={[
+                  styles.dot,
+                  {
+                    width: dotWidth,
+                    opacity: dotOpacity,
+                  },
+                ]}
+              />
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>🍇</Text>
-          <View>
-            <Text style={styles.appTitleKannada}>ದ್ರಾಕ್ಷಿ ಫಾರ್ಮ್ ಟ್ರಾಕರ್</Text>
-            <Text style={styles.appTitleEnglish}>Grape Farm Tracker</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: slide.color + '20' }]}>
-          <Text style={styles.iconEmoji}>{slide.image}</Text>
-        </View>
-
-        <Text style={styles.slideNumber}>
-          {currentSlide + 1} / {slides.length}
-        </Text>
-
-        <Text style={styles.titleKannada}>{slide.title}</Text>
-        <Text style={styles.titleEnglish}>{slide.titleEn}</Text>
-
-        <Text style={styles.descriptionKannada}>{slide.description}</Text>
-        <Text style={styles.descriptionEnglish}>{slide.descriptionEn}</Text>
-
-        <View style={styles.illustrationContainer}>
-          <View style={styles.illustrationBox}>
-            <Text style={styles.illustrationText}>
-              {currentSlide === 0 && "👨‍🌾 ➜ 📱 ➜ 🌿"}
-              {currentSlide === 1 && "📈 ₹ 💹"}
-              {currentSlide === 2 && "✅ 💵 😊"}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Dots */}
-      <View style={styles.dotsContainer}>
-        {slides.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.dot,
-              currentSlide === index && styles.dotActive,
-              { backgroundColor: currentSlide === index ? slide.color : '#d1d5db' }
-            ]}
-          />
-        ))}
-      </View>
-
-      {/* Buttons */}
-      <View style={styles.buttonContainer}>
-        {currentSlide > 0 && (
-          <TouchableOpacity
-            style={[styles.button, styles.buttonSecondary]}
-            onPress={goToPrev}
-          >
-            <Text style={styles.buttonTextSecondary}>ಹಿಂದೆ | Back</Text>
-          </TouchableOpacity>
-        )}
-
-        {currentSlide < slides.length - 1 ? (
-          <TouchableOpacity
-            style={[styles.button, styles.buttonPrimary, { backgroundColor: slide.color }]}
-            onPress={goToNext}
-          >
-            <Text style={styles.buttonTextPrimary}>ಮುಂದೆ | Next</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.button, styles.buttonPrimary, { backgroundColor: slide.color }]}
-            onPress={handleStart}
-          >
-            <Text style={styles.buttonTextPrimary}>ಪ್ರಾರಂಭಿಸಿ | Start</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Skip */}
-      {currentSlide < slides.length - 1 && (
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkip}
-        >
-          <Text style={styles.skipText}>ಸ್ಕಿಪ್ | Skip</Text>
-        </TouchableOpacity>
-      )}
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <FlatList
+        ref={flatListRef}
+        data={slides}
+        renderItem={renderSlide}
+        keyExtractor={(item) => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        scrollEventThrottle={16}
+        getItemLayout={(_, index) => ({
+          length: width,
+          offset: width * index,
+          index,
+        })}
+        bounces={false}
+      />
     </View>
   );
 }
@@ -161,164 +291,133 @@ export default function AppIntroScreen({ navigation }: ScreenProps<'AppIntro'>) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
   },
-  header: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+  slide: {
+    width: width,
+    height: height,
   },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logoEmoji: {
-    fontSize: 40,
-  },
-  appTitleKannada: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  appTitleEnglish: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  content: {
+  gradientBackground: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 60,
+  },
+  skipButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 16,
+  },
+  skipText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  slideContent: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    paddingBottom: 120,
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    marginBottom: 24,
+  },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   iconEmoji: {
-    fontSize: 60,
+    fontSize: 48,
   },
-  slideNumber: {
-    fontSize: 14,
-    color: '#9ca3af',
+  textContainer: {
+    alignItems: 'center',
     marginBottom: 16,
-    fontWeight: '600',
   },
   titleKannada: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    textAlign: 'center',
-    marginBottom: 8,
-    lineHeight: 36,
-  },
-  titleEnglish: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#4b5563',
+    color: '#ffffff',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 6,
+    lineHeight: 28,
+  },
+  titleEnglish: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+  },
+  descriptionContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 8,
   },
   descriptionKannada: {
-    fontSize: 18,
-    color: '#374151',
+    fontSize: 13,
+    color: '#ffffff',
     textAlign: 'center',
-    lineHeight: 28,
-    marginBottom: 12,
-    paddingHorizontal: 10,
+    lineHeight: 20,
+    marginBottom: 6,
   },
   descriptionEnglish: {
-    fontSize: 15,
-    color: '#6b7280',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 10,
+    lineHeight: 18,
   },
-  illustrationContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  illustrationBox: {
-    backgroundColor: '#ffffff',
-    padding: 30,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  illustrationText: {
-    fontSize: 48,
+  bottomControls: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 16,
   },
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    marginVertical: 24,
+    gap: 6,
+    marginBottom: 20,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  dotActive: {
-    width: 24,
-    height: 10,
-    borderRadius: 5,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  buttonPrimary: {
-    backgroundColor: '#10b981',
+  nextButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+    borderRadius: 24,
   },
-  buttonSecondary: {
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-  },
-  buttonTextPrimary: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  buttonTextSecondary: {
+  nextButtonText: {
     color: '#374151',
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
   },
-  skipButton: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    padding: 8,
+  startButton: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 24,
   },
-  skipText: {
-    color: '#6b7280',
-    fontSize: 16,
+  startButtonText: {
+    color: '#374151',
+    fontSize: 15,
     fontWeight: '600',
   },
 });

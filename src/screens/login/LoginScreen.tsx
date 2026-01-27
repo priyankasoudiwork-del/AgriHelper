@@ -1,104 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, Dimensions, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from 'mobx-react-lite';
-import { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../../hooks/useAuth';
 import { ScreenProps } from '../../types';
 
-const { height } = Dimensions.get('window');
-
-type LoginStep = 'phone' | 'otp';
-
 const PhoneAuthScreen = observer(({ navigation }: ScreenProps<'Login'>) => {
-  const [step, setStep] = useState<LoginStep>('phone');
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
   const [timer, setTimer] = useState(0);
 
-  const { loginWithPhone, verifyOTP, clearError } = useAuth();
+  const { loginWithPhone, verifyOTP, clearError, resetOtpState, pendingPhoneNumber } = useAuth();
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (timer > 0) {
       interval = setInterval(() => {
         setTimer((prev) => prev - 1);
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [timer]);
 
+  useEffect(() => {
+    if (pendingPhoneNumber && pendingPhoneNumber !== phoneNumber) {
+      setPhoneNumber(pendingPhoneNumber);
+    }
+  }, [pendingPhoneNumber]);
 
   const handleSendOTP = async () => {
     if (phoneNumber.length === 10) {
       setLoading(true);
-
       try {
-        const confirmationResult = await loginWithPhone(phoneNumber);
-
-        setConfirmation(confirmationResult);
+        await loginWithPhone(phoneNumber);
         setStep('otp');
         setTimer(60);
         setLoading(false);
-
         Alert.alert(
-          'ಯಶಸ್ವಿ | Success',
-          `OTP ಕಳುಹಿಸಲಾಗಿದೆ +91${phoneNumber} ಗೆ\nOTP sent to +91${phoneNumber}`,
-          [{ text: 'ಸರಿ | OK' }]
+          'Success',
+          `OTP sent to +91 ${phoneNumber}`,
+          [{ text: 'OK' }]
         );
       } catch (error: any) {
         setLoading(false);
-        console.error('Error sending OTP:', error);
-
-        let errorMessage = 'OTP ಕಳುಹಿಸಲು ವಿಫಲವಾಗಿದೆ\nFailed to send OTP';
-
+        let errorMessage = 'Failed to send OTP';
         if (error.code === 'auth/invalid-phone-number') {
-          errorMessage = 'ಅಮಾನ್ಯ ಫೋನ್ ಸಂಖ್ಯೆ\nInvalid phone number';
+          errorMessage = 'Invalid phone number';
         } else if (error.code === 'auth/too-many-requests') {
-          errorMessage = 'ಹಲವು ಪ್ರಯತ್ನಗಳು. ದಯವಿಟ್ಟು ನಂತರ ಪ್ರಯತ್ನಿಸಿ\nToo many requests. Please try later';
+          errorMessage = 'Too many requests. Please try later';
         } else if (error.code === 'auth/network-request-failed') {
-          errorMessage = 'ನೆಟ್‌ವರ್ಕ್ ದೋಷ. ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ\nNetwork error. Check your connection';
+          errorMessage = 'Network error. Check your connection';
         }
-
-        Alert.alert('ದೋಷ | Error', errorMessage, [{ text: 'ಸರಿ | OK' }]);
+        Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
       }
     }
   };
 
   const handleVerifyOTP = async () => {
-    if (otp.length === 6 && confirmation) {
+    if (otp.length === 6) {
       setLoading(true);
-
       try {
-        await verifyOTP(confirmation, otp);
-
-        console.log('User signed in successfully');
+        await verifyOTP(otp);
         setLoading(false);
-
-        Alert.alert(
-          'ಯಶಸ್ವಿ | Success',
-          'ಲಾಗಿನ್ ಯಶಸ್ವಿಯಾಗಿದೆ!\nLogin successful!',
-          [{ text: 'ಸರಿ | OK' }]
-        );
+        navigation.replace('Home');
       } catch (error: any) {
         setLoading(false);
-        console.error('Error verifying OTP:', error);
-
-        let errorMessage = 'OTP ಪರಿಶೀಲನೆ ವಿಫಲವಾಗಿದೆ\nOTP verification failed';
-
+        let errorMessage = 'OTP verification failed';
         if (error.code === 'auth/invalid-verification-code') {
-          errorMessage = 'ಅಮಾನ್ಯ OTP. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ\nInvalid OTP. Please try again';
+          errorMessage = 'Invalid OTP. Please try again';
         } else if (error.code === 'auth/code-expired') {
-          errorMessage = 'OTP ಅವಧಿ ಮುಗಿದಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಕಳುಹಿಸಿ\nOTP expired. Please resend';
+          errorMessage = 'OTP expired. Please resend';
         } else if (error.code === 'auth/session-expired') {
-          errorMessage = 'ಸೆಷನ್ ಮುಗಿದಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ\nSession expired. Please try again';
+          errorMessage = 'Session expired. Please try again';
           handleEditNumber();
         }
-
-        Alert.alert('ದೋಷ | Error', errorMessage, [{ text: 'ಸರಿ | OK' }]);
-
+        Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
         setOtp('');
       }
     }
@@ -106,491 +87,343 @@ const PhoneAuthScreen = observer(({ navigation }: ScreenProps<'Login'>) => {
 
   const handleResendOTP = async () => {
     if (timer > 0) {
-      Alert.alert(
-        'ದಯವಿಟ್ಟು ಕಾಯಿರಿ | Please Wait',
-        `${timer} ಸೆಕೆಂಡುಗಳಲ್ಲಿ ಮತ್ತೆ ಕಳುಹಿಸಬಹುದು\nYou can resend in ${timer} seconds`,
-        [{ text: 'ಸರಿ | OK' }]
-      );
+      Alert.alert('Please Wait', `You can resend in ${timer} seconds`, [{ text: 'OK' }]);
       return;
     }
-
     setOtp('');
     setLoading(true);
-
     try {
-      const confirmationResult = await loginWithPhone(phoneNumber);
-
-      setConfirmation(confirmationResult);
+      const phoneToUse = pendingPhoneNumber || phoneNumber;
+      await loginWithPhone(phoneToUse);
       setTimer(60);
       setLoading(false);
-
-      Alert.alert(
-        'ಯಶಸ್ವಿ | Success',
-        'OTP ಮತ್ತೆ ಕಳುಹಿಸಲಾಗಿದೆ\nOTP resent successfully',
-        [{ text: 'ಸರಿ | OK' }]
-      );
+      Alert.alert('Success', 'OTP resent successfully', [{ text: 'OK' }]);
     } catch (error) {
       setLoading(false);
-      console.error('Error resending OTP:', error);
-      Alert.alert(
-        'ದೋಷ | Error',
-        'OTP ಮತ್ತೆ ಕಳುಹಿಸಲು ವಿಫಲವಾಗಿದೆ\nFailed to resend OTP',
-        [{ text: 'ಸರಿ | OK' }]
-      );
+      Alert.alert('Error', 'Failed to resend OTP', [{ text: 'OK' }]);
     }
   };
 
   const handleEditNumber = () => {
     setStep('phone');
     setOtp('');
-    setConfirmation(null);
     setTimer(0);
+    resetOtpState();
     clearError();
   };
 
-  const isSmallDevice = height < 700;
-
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    <View style={styles.container}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <LinearGradient
+        colors={['#7c3aed', '#8b5cf6', '#a78bfa']}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header with Logo */}
-          <View style={[styles.header, isSmallDevice && styles.headerSmall]}>
-            <View style={[styles.logoCircle, isSmallDevice && styles.logoCircleSmall]}>
-              <Text style={[styles.logoEmoji, isSmallDevice && styles.logoEmojiSmall]}>🍇</Text>
-            </View>
-            <Text style={[styles.appName, isSmallDevice && styles.appNameSmall]}>ದ್ರಾಕ್ಷಿ ಫಾರ್ಮ್ ಟ್ರಾಕರ್</Text>
-            <Text style={[styles.appNameEn, isSmallDevice && styles.appNameEnSmall]}>Grape Farm Tracker</Text>
-          </View>
-
-          {/* Main Content */}
-          <View style={styles.content}>
-            {step === 'phone' ? (
-              <>
-                {/* Welcome Message */}
-                <View style={[styles.welcomeBox, isSmallDevice && styles.welcomeBoxSmall]}>
-                  <Text style={[styles.welcomeIcon, isSmallDevice && styles.welcomeIconSmall]}>📱</Text>
-                  <Text style={[styles.welcomeTitle, isSmallDevice && styles.welcomeTitleSmall]}>ಸ್ವಾಗತ!</Text>
-                  <Text style={[styles.welcomeTitleEn, isSmallDevice && styles.welcomeTitleEnSmall]}>Welcome!</Text>
-                  <Text style={[styles.welcomeText, isSmallDevice && styles.welcomeTextSmall]}>
-                    ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯೊಂದಿಗೆ ಲಾಗಿನ್ ಆಗಿ{'\n'}
-                    Login with your mobile number
-                  </Text>
-                </View>
-
-                {/* Phone Input */}
-                <View style={styles.inputContainer}>
-                  <Text style={[styles.label, isSmallDevice && styles.labelSmall]}>ಮೊಬೈಲ್ ಸಂಖ್ಯೆ | Mobile Number</Text>
-
-                  <View style={[styles.phoneInputWrapper, isSmallDevice && styles.inputSmall]}>
-                    <View style={styles.countryCode}>
-                      <Text style={[styles.countryCodeText, isSmallDevice && styles.countryCodeTextSmall]}>🇮🇳 +91</Text>
-                    </View>
-                    <TextInput
-                      style={[styles.phoneInput, isSmallDevice && styles.phoneInputSmall]}
-                      placeholder="9876543210"
-                      placeholderTextColor="#9ca3af"
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                      value={phoneNumber}
-                      onChangeText={setPhoneNumber}
-                    />
-                  </View>
-
-                  {phoneNumber.length > 0 && phoneNumber.length !== 10 && (
-                    <Text style={styles.errorText}>
-                      ⚠️ ದಯವಿಟ್ಟು 10 ಅಂಕಿಗಳನ್ನು ನಮೂದಿಸಿ | Please enter 10 digits
-                    </Text>
-                  )}
-                </View>
-
-                {/* Info Box */}
-                <View style={[styles.infoBox, isSmallDevice && styles.infoBoxSmall]}>
-                  <Text style={styles.infoIcon}>ℹ️</Text>
-                  <Text style={[styles.infoText, isSmallDevice && styles.infoTextSmall]}>
-                    ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಗೆ 6 ಅಂಕಿಗಳ OTP ಕಳುಹಿಸಲಾಗುತ್ತದೆ{'\n'}
-                    A 6-digit OTP will be sent to your mobile number
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <>
-                {/* OTP Verification */}
-                <View style={[styles.welcomeBox, isSmallDevice && styles.welcomeBoxSmall]}>
-                  <Text style={[styles.welcomeIcon, isSmallDevice && styles.welcomeIconSmall]}>🔐</Text>
-                  <Text style={[styles.welcomeTitle, isSmallDevice && styles.welcomeTitleSmall]}>OTP ಪರಿಶೀಲಿಸಿ</Text>
-                  <Text style={[styles.welcomeTitleEn, isSmallDevice && styles.welcomeTitleEnSmall]}>Verify OTP</Text>
-                  <Text style={[styles.welcomeText, isSmallDevice && styles.welcomeTextSmall]}>
-                    +91 {phoneNumber} ಗೆ ಕಳುಹಿಸಲಾದ{'\n'}
-                    6 ಅಂಕಿಗಳ OTP ನಮೂದಿಸಿ
-                  </Text>
-                  <TouchableOpacity onPress={handleEditNumber} style={styles.editButton}>
-                    <Text style={[styles.editButtonText, isSmallDevice && styles.editButtonTextSmall]}>✏️ ಬದಲಿಸಿ | Edit</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* OTP Input */}
-                <View style={styles.inputContainer}>
-                  <Text style={[styles.label, isSmallDevice && styles.labelSmall]}>OTP ನಮೂದಿಸಿ | Enter OTP</Text>
-
-                  <TextInput
-                    style={[styles.otpInput, isSmallDevice && styles.otpInputSmall]}
-                    placeholder="000000"
-                    placeholderTextColor="#9ca3af"
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    value={otp}
-                    onChangeText={setOtp}
-                    textAlign="center"
-                  />
-
-                  {otp.length > 0 && otp.length !== 6 && (
-                    <Text style={styles.errorText}>
-                      ⚠️ ದಯವಿಟ್ಟು 6 ಅಂಕಿಗಳನ್ನು ನಮೂದಿಸಿ | Please enter 6 digits
-                    </Text>
-                  )}
-                </View>
-
-                {/* Resend OTP */}
-                <View style={[styles.resendContainer, isSmallDevice && styles.resendContainerSmall]}>
-                  <Text style={[styles.resendText, isSmallDevice && styles.resendTextSmall]}>OTP ಬರಲಿಲ್ಲವೇ?</Text>
-                  <TouchableOpacity onPress={handleResendOTP} disabled={timer > 0}>
-                    <Text style={[styles.resendButton, timer > 0 && styles.resendDisabled, isSmallDevice && styles.resendButtonSmall]}>
-                      {timer > 0 ? `${timer}s` : 'ಮತ್ತೆ ಕಳುಹಿಸಿ | Resend'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-
-          {/* Spacer to push button down */}
-          <View style={styles.spacer} />
-
-          {/* Fixed Button at Bottom */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[
-                styles.button,
-                styles.buttonPrimary,
-                ((step === 'phone' && phoneNumber.length !== 10) || (step === 'otp' && otp.length !== 6) || loading) && styles.buttonDisabled
-              ]}
-              onPress={step === 'phone' ? handleSendOTP : handleVerifyOTP}
-              disabled={(step === 'phone' && phoneNumber.length !== 10) || (step === 'otp' && otp.length !== 6) || loading}
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardView}
+          >
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
-              {loading ? (
-                <Text style={[styles.buttonText, isSmallDevice && styles.buttonTextSmall]}>
-                  {step === 'phone' ? 'ಕಾಯಿರಿ... | Please wait...' : 'ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ... | Verifying...'}
-                </Text>
-              ) : (
-                <Text style={[styles.buttonText, isSmallDevice && styles.buttonTextSmall]}>
-                  {step === 'phone' ? 'OTP ಕಳುಹಿಸಿ | Send OTP' : 'ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಲಾಗಿನ್ | Verify & Login'}
-                </Text>
-              )}
-            </TouchableOpacity>
+              {/* Logo */}
+              <View style={styles.logoSection}>
+                <View style={styles.logoCircle}>
+                  <Text style={styles.logoEmoji}>🍇</Text>
+                </View>
+                <Text style={styles.appName}>Grape Farm Tracker</Text>
+              </View>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Text style={[styles.footerText, isSmallDevice && styles.footerTextSmall]}>
-                🔒 ನಿಮ್ಮ ಮಾಹಿತಿ ಸುರಕ್ಷಿತವಾಗಿದೆ | Your information is secure
-              </Text>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              {/* Card */}
+              <View style={styles.card}>
+                {step === 'phone' ? (
+                  <>
+                    <View style={styles.headerSection}>
+                      <Text style={styles.title}>Welcome</Text>
+                      <Text style={styles.subtitle}>Login with your mobile number</Text>
+                    </View>
+
+                    <View style={styles.inputSection}>
+                      <Text style={styles.label}>Mobile Number</Text>
+                      <View style={styles.phoneInputWrapper}>
+                        <View style={styles.countryCode}>
+                          <Text style={styles.countryCodeText}>+91</Text>
+                        </View>
+                        <TextInput
+                          style={styles.phoneInput}
+                          placeholder="Enter 10 digit number"
+                          placeholderTextColor="#9ca3af"
+                          keyboardType="phone-pad"
+                          maxLength={10}
+                          value={phoneNumber}
+                          onChangeText={setPhoneNumber}
+                        />
+                      </View>
+                      {phoneNumber.length > 0 && phoneNumber.length !== 10 && (
+                        <Text style={styles.errorText}>Please enter 10 digits</Text>
+                      )}
+                    </View>
+
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoText}>A 6-digit OTP will be sent to your number</Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.button, phoneNumber.length !== 10 && styles.buttonDisabled]}
+                      onPress={handleSendOTP}
+                      disabled={phoneNumber.length !== 10 || loading}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.buttonText}>
+                        {loading ? 'Sending...' : 'Send OTP'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.headerSection}>
+                      <Text style={styles.title}>Verify OTP</Text>
+                      <Text style={styles.subtitle}>
+                        Enter the code sent to +91 {pendingPhoneNumber || phoneNumber}
+                      </Text>
+                      <TouchableOpacity onPress={handleEditNumber} style={styles.editButton}>
+                        <Text style={styles.editButtonText}>Change number</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.inputSection}>
+                      <Text style={styles.label}>Enter OTP</Text>
+                      <TextInput
+                        style={styles.otpInput}
+                        placeholder="------"
+                        placeholderTextColor="#d1d5db"
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        value={otp}
+                        onChangeText={setOtp}
+                        textAlign="center"
+                      />
+                      {otp.length > 0 && otp.length !== 6 && (
+                        <Text style={styles.errorText}>Please enter 6 digits</Text>
+                      )}
+                    </View>
+
+                    <View style={styles.resendRow}>
+                      <Text style={styles.resendText}>Didn't receive code?</Text>
+                      <TouchableOpacity onPress={handleResendOTP} disabled={timer > 0}>
+                        <Text style={[styles.resendButton, timer > 0 && styles.resendDisabled]}>
+                          {timer > 0 ? `Resend in ${timer}s` : 'Resend'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.button, otp.length !== 6 && styles.buttonDisabled]}
+                      onPress={handleVerifyOTP}
+                      disabled={otp.length !== 6 || loading}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.buttonText}>
+                        {loading ? 'Verifying...' : 'Verify & Login'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+
+              {/* Footer */}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Your information is secure</Text>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </LinearGradient>
+    </View>
   );
 });
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+  },
+  gradient: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
   },
   keyboardView: {
     flex: 1,
   },
-  header: {
-    alignItems: 'center',
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
     paddingTop: 40,
-    paddingBottom: 30,
+    paddingBottom: 24,
   },
-  headerSmall: {
-    paddingTop: 20,
-    paddingBottom: 20,
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#8b5cf6',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  logoCircleSmall: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
     marginBottom: 12,
   },
   logoEmoji: {
-    fontSize: 48,
-  },
-  logoEmojiSmall: {
     fontSize: 36,
   },
   appName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
   },
-  appNameSmall: {
-    fontSize: 20,
-  },
-  appNameEn: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  appNameEnSmall: {
-    fontSize: 14,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  welcomeBox: {
+  card: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerSection: {
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  welcomeBoxSmall: {
-    padding: 16,
-    marginBottom: 16,
-  },
-  welcomeIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  welcomeIconSmall: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  welcomeTitleSmall: {
+  title: {
     fontSize: 22,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 6,
   },
-  welcomeTitleEn: {
-    fontSize: 20,
-    color: '#6b7280',
-    marginBottom: 8,
-  },
-  welcomeTitleEnSmall: {
-    fontSize: 16,
-  },
-  welcomeText: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 13,
     color: '#6b7280',
     textAlign: 'center',
-    lineHeight: 20,
   },
-  welcomeTextSmall: {
-    fontSize: 12,
-  },
-  inputContainer: {
-    marginBottom: 20,
+  inputSection: {
+    marginBottom: 16,
   },
   label: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
   },
-  labelSmall: {
-    fontSize: 14,
-  },
   phoneInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f9fafb',
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#e5e7eb',
     overflow: 'hidden',
   },
-  inputSmall: {
-    borderRadius: 10,
-  },
   countryCode: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     backgroundColor: '#f3f4f6',
     borderRightWidth: 1,
     borderRightColor: '#e5e7eb',
   },
   countryCodeText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  countryCodeTextSmall: {
     fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
   },
   phoneInput: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
     color: '#1f2937',
-  },
-  phoneInputSmall: {
-    fontSize: 16,
-    paddingVertical: 14,
   },
   otpInput: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f9fafb',
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#e5e7eb',
-    paddingVertical: 20,
-    fontSize: 32,
-    fontWeight: 'bold',
+    paddingVertical: 14,
+    fontSize: 20,
+    fontWeight: '600',
     color: '#1f2937',
-    letterSpacing: 8,
-  },
-  otpInputSmall: {
-    paddingVertical: 16,
-    fontSize: 28,
+    letterSpacing: 12,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#ef4444',
-    marginTop: 8,
+    marginTop: 6,
   },
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 16,
+  infoRow: {
+    alignItems: 'center',
     marginBottom: 20,
   },
-  infoBoxSmall: {
-    padding: 12,
-  },
-  infoIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
   infoText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#1e40af',
-    lineHeight: 18,
-  },
-  infoTextSmall: {
     fontSize: 12,
+    color: '#9ca3af',
   },
   editButton: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
   },
   editButtonText: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '600',
-  },
-  editButtonTextSmall: {
     fontSize: 12,
+    color: '#8b5cf6',
+    fontWeight: '500',
   },
-  resendContainer: {
+  resendRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
-  },
-  resendContainerSmall: {
-    marginTop: 4,
+    marginBottom: 20,
+    gap: 6,
   },
   resendText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginRight: 8,
-  },
-  resendTextSmall: {
     fontSize: 12,
+    color: '#6b7280',
   },
   resendButton: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#8b5cf6',
     fontWeight: '600',
-  },
-  resendButtonSmall: {
-    fontSize: 12,
   },
   resendDisabled: {
     color: '#9ca3af',
   },
-  spacer: {
-    flex: 1,
-  },
-  buttonContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-  },
   button: {
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPrimary: {
     backgroundColor: '#8b5cf6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
   buttonDisabled: {
     backgroundColor: '#d1d5db',
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#ffffff',
-  },
-  buttonTextSmall: {
-    fontSize: 14,
   },
   footer: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 24,
   },
   footerText: {
     fontSize: 12,
-    color: '#6b7280',
-  },
-  footerTextSmall: {
-    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
 });
 

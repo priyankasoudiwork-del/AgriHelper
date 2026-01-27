@@ -24,6 +24,7 @@ export type RootStackParamList = {
     recordId?: string;
   };
   FarmInfo: undefined;
+  AiChat:undefined
 };
 
 /**

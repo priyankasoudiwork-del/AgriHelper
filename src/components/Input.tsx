@@ -24,7 +24,12 @@ export const CustomInput: React.FC<CustomInputProps> = ({
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={[styles.label, labelStyle]}>{label}</Text>}
       <TextInput
-        style={[styles.input, error && styles.inputError, inputStyle, style]}
+        style={[
+          styles.input,
+          error && styles.inputError,
+          inputStyle,
+          style,
+        ]}
         placeholderTextColor="#9ca3af"
         {...props}
       />
@@ -103,6 +108,9 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 8,
   },
+  inputWrapper: {
+    position: 'relative',
+  },
   input: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -113,6 +121,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1f2937',
   },
+  inputWithMic: {
+    paddingRight: 56,
+  },
   inputError: {
     borderColor: '#ef4444',
   },
@@ -120,6 +131,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#ef4444',
     marginTop: 6,
+  },
+  micButton: {
+    position: 'absolute',
+    right: 8,
+    top: '50%',
+    transform: [{ translateY: -20 }],
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  micButtonRecording: {
+    backgroundColor: '#fee2e2',
+  },
+  micIcon: {
+    fontSize: 20,
   },
   phoneWrapper: {
     flexDirection: 'row',

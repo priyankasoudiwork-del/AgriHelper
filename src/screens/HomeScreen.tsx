@@ -42,7 +42,7 @@ const HomeScreen = observer(({ navigation }: ScreenProps<'Home'>) => {
       titleEn: 'Product Scanner',
       color: '#059669',
       bgColor: '#d1fae5',
-      route: 'AiScanner',
+      route: 'AiChat',
     },
     {
       id: '3',
@@ -98,13 +98,12 @@ const HomeScreen = observer(({ navigation }: ScreenProps<'Home'>) => {
     >
       <Card style={[styles.card, { backgroundColor: item.bgColor }]}>
         <Text style={styles.icon}>{item.icon}</Text>
-        <BilingualText
-          kannada={item.titleKn}
-          english={item.titleEn}
-          kannadaStyle={[styles.titleKn, { color: item.color }]}
-          englishStyle={styles.titleEn}
-          separator="\n"
-        />
+        <Text style={[styles.titleKn, { color: item.color }]}>
+          {item.titleKn}
+        </Text>
+        <Text style={styles.titleEn}>
+          {item.titleEn}
+        </Text>
       </Card>
     </TouchableOpacity>
   );
@@ -159,23 +158,26 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     width: '48%',
+    marginBottom: 12,
   },
   card: {
-    padding: 20,
+    height: 160,
+    padding: 16,
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
   },
   icon: {
-    fontSize: 48,
-    marginBottom: 12,
+    fontSize: 40,
+    marginBottom: 8,
   },
   titleKn: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 4,
   },
   titleEn: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6b7280',
     textAlign: 'center',
   },

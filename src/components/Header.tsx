@@ -82,11 +82,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#ffffff',
   },
   subtitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#ffffff',
     marginTop: 2,
   },
 });

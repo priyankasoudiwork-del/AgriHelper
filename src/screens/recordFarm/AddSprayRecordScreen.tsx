@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Text as RNText } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Text as RNText, Alert, ActivityIndicator, Platform, Image } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import ImagePicker from 'react-native-image-crop-picker';
+import { useFormik } from 'formik';
 import {
   Header,
   CustomInput,
@@ -10,41 +13,75 @@ import {
   BilingualText,
   InfoBox,
 } from '../../components';
-
-interface FormData {
-  date: string;
-  chemicalName: string;
-  disease: string;
-  quantity: string;
-  unit: string;
-  acres: string;
-  cost: string;
-  weather: string;
-  sprayTime: string;
-  sprayMethod: string;
-  notes: string;
-}
+import sprayRecordService from '../../services/sprayRecordService';
+import { useAuth } from '../../hooks/useAuth';
 
 interface AddSprayRecordScreenProps {
   navigation: any;
 }
 
 const AddSprayRecordScreen: React.FC<AddSprayRecordScreenProps> = ({ navigation }) => {
-  const [formData, setFormData] = useState<FormData>({
-    date: new Date().toISOString().split('T')[0],
-    chemicalName: '',
-    disease: '',
-    quantity: '',
-    unit: 'ml',
-    acres: '',
-    cost: '',
-    weather: '',
-    sprayTime: '',
-    sprayMethod: '',
-    notes: '',
-  });
-
+  const { userId } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const formik = useFormik({
+    initialValues: {
+      date: new Date().toISOString().split('T')[0],
+      chemicalName: '',
+      disease: '',
+      quantity: '',
+      unit: 'ml',
+      acres: '',
+      cost: '',
+      weather: '',
+      sprayTime: '',
+      sprayMethod: '',
+      notes: '',
+    },
+    onSubmit: async (values) => {
+      if (!userId) {
+        Alert.alert(
+          'ದೋಷ | Error',
+          'ದಯವಿಟ್ಟು ಮೊದಲು ಲಾಗಿನ್ ಮಾಡಿ | Please login first',
+          [{ text: 'ಸರಿ | OK' }]
+        );
+        return;
+      }
+
+      setSaving(true);
+      const data = {
+        ...values,
+        imageUrl: selectedImage || null,
+      };
+
+      try {
+        const recordId = await sprayRecordService.addSprayRecord(userId, data);
+        console.log('Spray record saved with ID:', recordId);
+
+        Alert.alert(
+          'ಯಶಸ್ವಿ | Success',
+          'ಸ್ಪ್ರೇ ದಾಖಲೆ ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ!\nSpray record saved successfully!',
+          [
+            {
+              text: 'ಸರಿ | OK',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+      } catch (error: any) {
+        console.error('Error saving spray record:', error);
+        Alert.alert(
+          'ದೋಷ | Error',
+          'ದಾಖಲೆ ಉಳಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.\nFailed to save record. Please try again.',
+          [{ text: 'ಸರಿ | OK' }]
+        );
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
 
   const diseaseOptions: SelectOption[] = [
     { label: 'ಆಯ್ಕೆ ಮಾಡಿ | Select', value: '' },
@@ -66,51 +103,127 @@ const AddSprayRecordScreen: React.FC<AddSprayRecordScreenProps> = ({ navigation 
   ];
 
   const weatherOptions: SelectOption[] = [
+    { label: 'ಆಯ್ಕೆ ಮಾಡಿ | Select', value: '' },
     { label: '☀️ ಬಿಸಿಲು | Sunny', value: 'sunny' },
     { label: '☁️ ಮೋಡ | Cloudy', value: 'cloudy' },
     { label: '🌧️ ಮಳೆ | Rainy', value: 'rainy' },
   ];
 
   const timeOptions: SelectOption[] = [
+    { label: 'ಆಯ್ಕೆ ಮಾಡಿ | Select', value: '' },
     { label: '🌅 ಬೆಳಿಗ್ಗೆ | Morning', value: 'morning' },
     { label: '☀️ ಮಧ್ಯಾಹ್ನ | Afternoon', value: 'afternoon' },
     { label: '🌆 ಸಂಜೆ | Evening', value: 'evening' },
   ];
 
   const sprayMethodOptions: SelectOption[] = [
+    { label: 'ಆಯ್ಕೆ ಮಾಡಿ | Select', value: '' },
     { label: '💪 ಕೈ ಪಂಪ್ | Hand Pump', value: 'hand_pump' },
     { label: '⚙️ ಮೋಟಾರ್ | Motor Pump', value: 'motor_pump' },
     { label: '🚜 ಟ್ರಾಕ್ಟರ್ | Tractor', value: 'tractor' },
   ];
 
-  const handleImagePick = () => {
-    setSelectedImage('captured');
+  const handleDateChange = (event: any, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+
+    if (date) {
+      const formattedDate = date.toISOString().split('T')[0];
+      formik.setFieldValue('date', formattedDate);
+    }
+  };
+
+  const formatDisplayDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const handleImageSelection = () => {
+    Alert.alert(
+      'ಫೋಟೋ ಆಯ್ಕೆ | Select Photo',
+      'ಫೋಟೋ ತೆಗೆಯಿರಿ ಅಥವಾ ಗ್ಯಾಲರಿಯಿಂದ ಆಯ್ಕೆ ಮಾಡಿ\nTake photo or select from gallery',
+      [
+        {
+          text: '📷 ಕ್ಯಾಮೆರಾ | Camera',
+          onPress: () => launchCameraHandler(),
+        },
+        {
+          text: '🖼️ ಗ್ಯಾಲರಿ | Gallery',
+          onPress: () => launchGalleryHandler(),
+        },
+        {
+          text: 'ರದ್ದು | Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const launchCameraHandler = async () => {
+    try {
+      const image = await ImagePicker.openCamera({
+        width: 800,
+        height: 800,
+        cropping: true,
+        cropperCircleOverlay: false,
+        compressImageQuality: 0.8,
+        mediaType: 'photo',
+        includeBase64: false,
+        cropperToolbarTitle: 'ಕ್ರಾಪ್ ಮಾಡಿ | Crop Image',
+        cropperChooseText: 'ಆಯ್ಕೆ | Choose',
+        cropperCancelText: 'ರದ್ದು | Cancel',
+      });
+
+      if (image && image.path) {
+        setSelectedImage(image.path);
+      }
+    } catch (error: any) {
+      if (error.code !== 'E_PICKER_CANCELLED') {
+        console.error('Camera error:', error);
+        Alert.alert(
+          'ದೋಷ | Error',
+          'ಕ್ಯಾಮೆರಾ ತೆರೆಯಲು ವಿಫಲವಾಗಿದೆ | Failed to open camera'
+        );
+      }
+    }
+  };
+
+  const launchGalleryHandler = async () => {
+    try {
+      const image = await ImagePicker.openPicker({
+        width: 800,
+        height: 800,
+        cropping: true,
+        cropperCircleOverlay: false,
+        compressImageQuality: 0.8,
+        mediaType: 'photo',
+        includeBase64: false,
+        cropperToolbarTitle: 'ಕ್ರಾಪ್ ಮಾಡಿ | Crop Image',
+        cropperChooseText: 'ಆಯ್ಕೆ | Choose',
+        cropperCancelText: 'ರದ್ದು | Cancel',
+      });
+
+      if (image && image.path) {
+        setSelectedImage(image.path);
+      }
+    } catch (error: any) {
+      if (error.code !== 'E_PICKER_CANCELLED') {
+        console.error('Gallery error:', error);
+        Alert.alert(
+          'ದೋಷ | Error',
+          'ಗ್ಯಾಲರಿ ತೆರೆಯಲು ವಿಫಲವಾಗಿದೆ | Failed to open gallery'
+        );
+      }
+    }
   };
 
   const handleRemoveImage = () => {
     setSelectedImage(null);
-  };
-
-  const handleSubmit = () => {
-    if (!isFormValid()) {
-      return;
-    }
-    console.log('Form submitted:', formData);
-    navigation.goBack();
-  };
-
-  const updateField = (field: keyof FormData, value: string) => {
-    setFormData({ ...formData, [field]: value });
-  };
-
-  const isFormValid = (): boolean => {
-    return !!(
-      formData.chemicalName &&
-      formData.disease &&
-      formData.quantity &&
-      formData.acres &&
-      formData.cost
-    );
   };
 
   return (
@@ -133,20 +246,20 @@ const AddSprayRecordScreen: React.FC<AddSprayRecordScreenProps> = ({ navigation 
           />
 
           {!selectedImage ? (
-            <TouchableOpacity style={styles.imageUploadBox} onPress={handleImagePick}>
+            <TouchableOpacity style={styles.imageUploadBox} onPress={handleImageSelection}>
               <RNText style={styles.imageUploadIcon}>📷</RNText>
               <BilingualText
-                kannada="ಫೋಟೋ ತೆಗೆಯಿರಿ"
-                english="Take Photo"
+                kannada="ಫೋಟೋ ಸೇರಿಸಿ"
+                english="Add Photo"
                 style={styles.imageUploadText}
               />
+              <RNText style={styles.imageUploadSubtext}>
+                ಕ್ಯಾಮೆರಾ ಅಥವಾ ಗ್ಯಾಲರಿ | Camera or Gallery
+              </RNText>
             </TouchableOpacity>
           ) : (
             <View style={styles.imagePreviewContainer}>
-              <InfoBox
-                message="✅ ಫೋಟೋ ತೆಗೆದುಕೊಂಡಿದೆ | Photo Captured"
-                variant="success"
-              />
+              <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
               <Button
                 title="❌ ತೆಗೆದುಹಾಕಿ | Remove"
                 onPress={handleRemoveImage}
@@ -160,61 +273,96 @@ const AddSprayRecordScreen: React.FC<AddSprayRecordScreenProps> = ({ navigation 
 
         {/* Form Fields */}
         <Card style={styles.section}>
-          <CustomInput
-            label="📅 ದಿನಾಂಕ | Date *"
-            value={formData.date}
-            onChangeText={(value) => updateField('date', value)}
-            editable={false}
-          />
+          {/* Date Picker Field */}
+          <View style={styles.datePickerContainer}>
+            <BilingualText
+              kannada="📅 ದಿನಾಂಕ"
+              english="Date"
+              style={styles.dateLabel}
+              separator=" | "
+            />
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <RNText style={styles.datePickerText}>
+                {formatDisplayDate(formik.values.date)}
+              </RNText>
+              <RNText style={styles.datePickerIcon}>📅</RNText>
+            </TouchableOpacity>
+          </View>
+
+          {/* Date Picker Modal */}
+          {showDatePicker && (
+            <DateTimePicker
+              value={new Date(formik.values.date)}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+            />
+          )}
+
+          {/* iOS Date Picker Done Button */}
+          {showDatePicker && Platform.OS === 'ios' && (
+            <View style={styles.datePickerActions}>
+              <Button
+                title="ಮುಗಿದಿದೆ | Done"
+                onPress={() => setShowDatePicker(false)}
+                variant="primary"
+                size="small"
+              />
+            </View>
+          )}
 
           <CustomInput
-            label="💧 ರಾಸಾಯನಿಕ ಹೆಸರು | Chemical Name *"
+            label="💧 ರಾಸಾಯನಿಕ ಹೆಸರು | Chemical Name"
             placeholder="ಉದಾ: ರಿಡೋಮಿಲ್ ಗೋಲ್ಡ್ | Ex: Ridomil Gold"
-            value={formData.chemicalName}
-            onChangeText={(value) => updateField('chemicalName', value)}
+            value={formik.values.chemicalName}
+            onChangeText={formik.handleChange('chemicalName')}
           />
 
           <Select
-            label="🦠 ರೋಗ / ಸಮಸ್ಯೆ | Disease / Problem *"
+            label="🦠 ರೋಗ / ಸಮಸ್ಯೆ | Disease / Problem"
             placeholder="ಆಯ್ಕೆ ಮಾಡಿ | Select"
             options={diseaseOptions}
-            value={formData.disease}
-            onChange={(value) => updateField('disease', value as string)}
+            value={formik.values.disease}
+            onChange={(value) => formik.setFieldValue('disease', value)}
           />
 
           <View style={styles.row}>
-            <View style={styles.halfWidth}>
+            <View style={styles.flexInput}>
               <CustomInput
-                label="📊 ಪ್ರಮಾಣ | Quantity *"
+                label="📊 ಪ್ರಮಾಣ | Quantity"
                 placeholder="100"
-                value={formData.quantity}
-                onChangeText={(value) => updateField('quantity', value)}
+                value={formik.values.quantity}
+                onChangeText={formik.handleChange('quantity')}
                 keyboardType="numeric"
               />
             </View>
-            <View style={styles.halfWidth}>
+            <View style={styles.flexSelect}>
               <Select
                 label="ಘಟಕ | Unit"
                 options={unitOptions}
-                value={formData.unit}
-                onChange={(value) => updateField('unit', value as string)}
+                value={formik.values.unit}
+                onChange={(value) => formik.setFieldValue('unit', value)}
               />
             </View>
           </View>
 
           <CustomInput
-            label="🌾 ಎಕರೆ | Acres *"
+            label="🌾 ಎಕರೆ | Acres"
             placeholder="5"
-            value={formData.acres}
-            onChangeText={(value) => updateField('acres', value)}
+            value={formik.values.acres}
+            onChangeText={formik.handleChange('acres')}
             keyboardType="numeric"
           />
 
           <CustomInput
-            label="💰 ವೆಚ್ಚ | Cost *"
+            label="💰 ವೆಚ್ಚ | Cost"
             placeholder="₹ 500"
-            value={formData.cost}
-            onChangeText={(value) => updateField('cost', value)}
+            value={formik.values.cost}
+            onChangeText={formik.handleChange('cost')}
             keyboardType="numeric"
           />
 
@@ -222,50 +370,43 @@ const AddSprayRecordScreen: React.FC<AddSprayRecordScreenProps> = ({ navigation 
             label="🌤️ ಹವಾಮಾನ | Weather"
             placeholder="ಆಯ್ಕೆ ಮಾಡಿ | Select"
             options={weatherOptions}
-            value={formData.weather}
-            onChange={(value) => updateField('weather', value as string)}
+            value={formik.values.weather}
+            onChange={(value) => formik.setFieldValue('weather', value)}
           />
 
           <Select
             label="⏰ ಸಮಯ | Time"
             placeholder="ಆಯ್ಕೆ ಮಾಡಿ | Select"
             options={timeOptions}
-            value={formData.sprayTime}
-            onChange={(value) => updateField('sprayTime', value as string)}
+            value={formik.values.sprayTime}
+            onChange={(value) => formik.setFieldValue('sprayTime', value)}
           />
 
           <Select
             label="🚜 ಸಿಂಪಡಿಸುವ ವಿಧಾನ | Spray Method"
             placeholder="ಆಯ್ಕೆ ಮಾಡಿ | Select"
             options={sprayMethodOptions}
-            value={formData.sprayMethod}
-            onChange={(value) => updateField('sprayMethod', value as string)}
+            value={formik.values.sprayMethod}
+            onChange={(value) => formik.setFieldValue('sprayMethod', value)}
           />
 
           <CustomInput
             label="📝 ಟಿಪ್ಪಣಿಗಳು | Notes"
             placeholder="ಹೆಚ್ಚುವರಿ ಮಾಹಿತಿ | Additional information..."
-            value={formData.notes}
-            onChangeText={(value) => updateField('notes', value)}
+            value={formik.values.notes}
+            onChangeText={formik.handleChange('notes')}
             multiline
             numberOfLines={4}
             inputStyle={styles.notesInput}
           />
         </Card>
 
-        {/* Info Box */}
-        <InfoBox
-          message="* ಗುರುತಿಸಿದ ಕ್ಷೇತ್ರಗಳು ಕಡ್ಡಾಯ | * Marked fields are mandatory"
-          variant="info"
-          style={styles.infoBox}
-        />
-
         {/* Submit Button */}
         <Button
-          title={isFormValid() ? "✅ ಉಳಿಸಿ | Save Record" : "ದಯವಿಟ್ಟು ಎಲ್ಲಾ ಕ್ಷೇತ್ರಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ"}
-          onPress={handleSubmit}
-          variant={isFormValid() ? "primary" : "secondary"}
-          disabled={!isFormValid()}
+          title={saving ? "ಉಳಿಸಲಾಗುತ್ತಿದೆ... | Saving..." : "✅ ಉಳಿಸಿ | Save Record"}
+          onPress={formik.handleSubmit}
+          variant="primary"
+          disabled={saving}
           style={styles.submitButton}
         />
 
@@ -310,28 +451,44 @@ const styles = StyleSheet.create({
   },
   imageUploadText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: '#374151',
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  imageUploadSubtext: {
+    fontSize: 12,
+    color: '#9ca3af',
     textAlign: 'center',
   },
   imagePreviewContainer: {
+    alignItems: 'center',
     gap: 12,
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: '#e5e7eb',
   },
   removeButton: {
     marginTop: 8,
+    width: '100%',
   },
   row: {
     flexDirection: 'row',
     gap: 12,
+    alignItems: 'flex-start',
   },
-  halfWidth: {
+  flexInput: {
+    flex: 2,
+  },
+  flexSelect: {
     flex: 1,
   },
   notesInput: {
     height: 100,
     textAlignVertical: 'top',
-  },
-  infoBox: {
-    marginHorizontal: 16,
   },
   submitButton: {
     marginHorizontal: 16,
@@ -339,6 +496,38 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 40,
+  },
+  datePickerContainer: {
+    marginBottom: 16,
+  },
+  dateLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    padding: 16,
+    minHeight: 56,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#1f2937',
+    fontWeight: '500',
+  },
+  datePickerIcon: {
+    fontSize: 20,
+  },
+  datePickerActions: {
+    marginTop: 12,
+    alignItems: 'flex-end',
   },
 });
 
