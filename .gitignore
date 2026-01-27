@@ -73,3 +73,29 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# ============================================
+# IMPORTANT: CI/CD Security - ADD THESE LINES
+# ============================================
+
+# Gradle Properties - Contains keystore passwords
+gradle.properties
+android/gradle.properties
+
+# Your specific keystore file
+android/app/agrihelp-release-key.keystore
+
+# Environment variables
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+
+# CI/CD temporary files
+keystore-base64.txt
+*.keystore.txt
+
+# Firebase config (if you have it)
+google-services.json
+GoogleService-Info.plist

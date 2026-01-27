@@ -7,7 +7,12 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "android:clean": "cd android && ./gradlew clean",
+    "android:build": "cd android && ./gradlew assembleRelease",
+    "android:bundle": "cd android && ./gradlew bundleRelease",
+    "ios:clean": "cd ios && xcodebuild clean",
+    "ios:build": "cd ios && xcodebuild -workspace AgriHelper.xcworkspace -scheme AgriHelper -configuration Release"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
